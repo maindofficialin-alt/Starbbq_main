@@ -266,10 +266,10 @@ export default function App() {
   };
 
   return (
-    <div id="outer-container" style={{ height: "800vh", position: "relative", backgroundColor: "#0a0608" }}>
+    <div id="outer-container" style={{ height: "800dvh", position: "relative", backgroundColor: "#0a0608" }}>
 
       {/* ═══ STICKY VIEWPORT ═══ */}
-      <div style={{ position: "sticky", top: 0, height: "100vh", width: "100%", maxWidth: "100vw", overflow: "hidden", backgroundColor: "#0a0608" }}>
+      <div style={{ position: "sticky", top: 0, height: "100dvh", width: "100%", maxWidth: "100vw", overflow: "hidden", backgroundColor: "#0a0608" }}>
 
         {/* ═══ FULL-SCREEN LOGO SPLASH (z-index: 100) ═══ */}
         {splashOpacity > 0.01 && (
@@ -291,7 +291,6 @@ export default function App() {
               style={{
                 transform: `scale(${splashScale}) translate3d(0,0,0)`,
                 WebkitBackfaceVisibility: "hidden",
-                willChange: "transform, opacity",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
@@ -300,8 +299,8 @@ export default function App() {
             >
               <div
                 style={{
-                  width: isMobile ? "280px" : "320px",
-                  height: isMobile ? "280px" : "320px",
+                  width: isMobile ? "300px" : "320px",
+                  height: isMobile ? "300px" : "320px",
                   borderRadius: "50%",
                   overflow: "hidden",
                   border: `${isMobile ? 4 : 6}px solid #FF5500`,
@@ -408,27 +407,27 @@ export default function App() {
         <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "42vh", background: "linear-gradient(to bottom, rgba(10,6,8,0.8) 0%, transparent 100%)", pointerEvents: "none", zIndex: 45 }} />
 
         {/* Layer 1: World BG (z: 0) */}
-        <div style={{ position: "absolute", inset: 0, transformOrigin: "50% 50%", transform: `scale(${worldScale}) translate3d(${-mx * 6}px, ${-my * 6}px, 0)`, WebkitBackfaceVisibility: "hidden", willChange: "transform", zIndex: 0 }}>
+        <div style={{ position: "absolute", inset: 0, transformOrigin: "50% 50%", transform: `scale(${worldScale}) translate3d(${-mx * 6}px, ${-my * 6}px, 0)`, WebkitBackfaceVisibility: "hidden", zIndex: 0 }}>
           <img src={WORLD_BG} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", filter: "brightness(0.6) contrast(1.2)" }} />
         </div>
 
         {/* Layer 1.2: Coal BG (z: 1) */}
-        <div style={{ position: "absolute", inset: 0, transformOrigin: "50% 50%", transform: `scale(${worldScale}) translate3d(${-mx * 6}px, ${-my * 6}px, 0)`, opacity: coalOpacity, WebkitBackfaceVisibility: "hidden", willChange: "transform, opacity", zIndex: 1 }}>
+        <div style={{ position: "absolute", inset: 0, transformOrigin: "50% 50%", transform: `scale(${worldScale}) translate3d(${-mx * 6}px, ${-my * 6}px, 0)`, opacity: coalOpacity, WebkitBackfaceVisibility: "hidden", zIndex: 1 }}>
           <img src="/images/coal.jpg" alt="" style={{ width: "100%", height: "100%", objectFit: "cover", filter: "brightness(0.5) contrast(1.1)" }} />
         </div>
 
         {/* Layer 2: Bottom Clouds (z: 10) */}
-        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, transformOrigin: "50% 100%", transform: `scale(${cloudsScale}) translate3d(${-mx * 9}px, ${-my * 9 * 0.4}px, 0)`, opacity: lerp(0.5, 1.0, clamp(scrollProgress / 0.05, 0, 1)), filter: fireFilter, WebkitBackfaceVisibility: "hidden", willChange: "transform", zIndex: 10 }}>
+        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, transformOrigin: "50% 100%", transform: `scale(${cloudsScale}) translate3d(${-mx * 9}px, ${-my * 9 * 0.4}px, 0)`, opacity: lerp(0.5, 1.0, clamp(scrollProgress / 0.05, 0, 1)), filter: fireFilter, WebkitBackfaceVisibility: "hidden", zIndex: 10 }}>
           <img src={BOTTOM_CLOUDS} alt="" style={{ width: "100%", height: "auto", display: "block" }} />
         </div>
 
         {/* Layer 2.5: Arc Slider (z: 9) */}
-        <div style={{ position: "absolute", bottom: arcSliderBottom, left: 0, right: 0, opacity: scene2Opacity, WebkitBackfaceVisibility: "hidden", willChange: "opacity", zIndex: 9, pointerEvents: scene2Opacity > 0.1 ? "auto" : "none" }}>
+        <div style={{ position: "absolute", bottom: arcSliderBottom, left: 0, right: 0, opacity: scene2Opacity, WebkitBackfaceVisibility: "hidden", zIndex: 9, pointerEvents: scene2Opacity > 0.1 ? "auto" : "none" }}>
           <ArcCardSlider cards={SCENE2_CARDS} rotationOffset={sliderRotationOffset} tier={tier} />
         </div>
 
         {/* Layer 3: Portal (z: 15) */}
-        <div style={{ position: "absolute", inset: 0, transformOrigin: "52% 38%", transform: `scale(${portalScale}) translate3d(${-mx * 7}px, ${-my * 7}px, 0)`, opacity: portalOpacity, filter: fireFilter, WebkitBackfaceVisibility: "hidden", willChange: "transform, opacity", zIndex: 15 }}>
+        <div style={{ position: "absolute", inset: 0, transformOrigin: "52% 38%", transform: `scale(${portalScale}) translate3d(${-mx * 7}px, ${-my * 7}px, 0)`, opacity: portalOpacity, filter: fireFilter, WebkitBackfaceVisibility: "hidden", zIndex: 15 }}>
           <img src={PORTAL_BG} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         </div>
 
@@ -436,12 +435,12 @@ export default function App() {
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "40%", background: "linear-gradient(to top, rgba(10,6,8,0.8) 0%, transparent 100%)", pointerEvents: "none", zIndex: 16 }} />
 
         {/* Curtain Left (z: 16) */}
-        <div style={{ position: "absolute", inset: 0, transformOrigin: "left center", transform: `translate3d(${curtainLX}%, 0, 0) scale(${lerp(1, 1.3, ep)}) translate3d(${-mx * 14}px, ${-my * 14 * 0.3}px, 0)`, transition: curtainTrans, WebkitBackfaceVisibility: "hidden", willChange: "transform", filter: "sepia(1) hue-rotate(-30deg) saturate(1.5) brightness(0.4)", zIndex: 16 }}>
+        <div style={{ position: "absolute", inset: 0, transformOrigin: "left center", transform: `translate3d(${curtainLX}%, 0, 0) scale(${lerp(1, 1.3, ep)}) translate3d(${-mx * 14}px, ${-my * 14 * 0.3}px, 0)`, transition: curtainTrans, WebkitBackfaceVisibility: "hidden", filter: "sepia(1) hue-rotate(-30deg) saturate(1.5) brightness(0.4)", zIndex: 16 }}>
           <img src={CURTAIN_LEFT} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "right center" }} />
         </div>
 
         {/* Curtain Right (z: 16) */}
-        <div style={{ position: "absolute", inset: 0, transformOrigin: "right center", transform: `translate3d(${curtainRX}%, 0, 0) scale(${lerp(1, 1.3, ep)}) translate3d(${-mx * 14}px, ${-my * 14 * 0.3}px, 0)`, transition: curtainTrans, WebkitBackfaceVisibility: "hidden", willChange: "transform", filter: "sepia(1) hue-rotate(-30deg) saturate(1.5) brightness(0.4)", zIndex: 16 }}>
+        <div style={{ position: "absolute", inset: 0, transformOrigin: "right center", transform: `translate3d(${curtainRX}%, 0, 0) scale(${lerp(1, 1.3, ep)}) translate3d(${-mx * 14}px, ${-my * 14 * 0.3}px, 0)`, transition: curtainTrans, WebkitBackfaceVisibility: "hidden", filter: "sepia(1) hue-rotate(-30deg) saturate(1.5) brightness(0.4)", zIndex: 16 }}>
           <img src={CURTAIN_RIGHT} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "left center" }} />
         </div>
 
@@ -616,18 +615,18 @@ function InfoCard({ image, size, value, label, valueFS, labelFS }: { image: stri
 interface ArcSliderProps { cards: typeof SCENE2_CARDS; rotationOffset: number; tier: DeviceTier; }
 
 function ArcCardSlider({ cards, rotationOffset, tier }: ArcSliderProps) {
-  // Tightened mobile radii and dimensions to prevent edge clipping on 320px
+  // Relaxed mobile radii and dimensions so cards look massive and don't clip off
   const cardSpacingDeg = rv(tier, { 'mobile-sm': 18, mobile: 14, tablet: 10, laptop: 9, desktop: 8, tv: 7 });
-  const arcRadius = rv(tier, { 'mobile-sm': 600, mobile: 900, tablet: 1400, laptop: 1800, desktop: 2200, tv: 3000 });
-  const cardW = rv(tier, { 'mobile-sm': 180, mobile: 220, tablet: 210, laptop: 260, desktop: 300, tv: 380 });
-  const cardH = rv(tier, { 'mobile-sm': 240, mobile: 280, tablet: 260, laptop: 320, desktop: 370, tv: 460 });
-  const containerH = rv(tier, { 'mobile-sm': '300px', mobile: '340px', tablet: '330px', laptop: '400px', desktop: '440px', tv: '560px' });
+  const arcRadius = rv(tier, { 'mobile-sm': 1200, mobile: 1400, tablet: 1400, laptop: 1800, desktop: 2200, tv: 3000 });
+  const cardW = rv(tier, { 'mobile-sm': 220, mobile: 260, tablet: 240, laptop: 260, desktop: 300, tv: 380 });
+  const cardH = rv(tier, { 'mobile-sm': 300, mobile: 340, tablet: 320, laptop: 320, desktop: 370, tv: 460 });
+  const containerH = rv(tier, { 'mobile-sm': '360px', mobile: '420px', tablet: '380px', laptop: '400px', desktop: '440px', tv: '560px' });
   const cardBR = rv(tier, { 'mobile-sm': '16px', mobile: '20px', tablet: '22px', laptop: '28px', desktop: '30px', tv: '36px' });
-  const titleFS = rv(tier, { 'mobile-sm': '20px', mobile: '24px', tablet: '26px', laptop: '32px', desktop: '36px', tv: '44px' });
-  const descFS = rv(tier, { 'mobile-sm': '13px', mobile: '15px', tablet: '14px', laptop: '16px', desktop: '18px', tv: '22px' });
-  const pad = rv(tier, { 'mobile-sm': '12px', mobile: '16px', tablet: '18px', laptop: '24px', desktop: '28px', tv: '36px' });
-  const badgeSz = rv(tier, { 'mobile-sm': 22, mobile: 28, tablet: 28, laptop: 28, desktop: 32, tv: 38 });
-  const bottomOffset = rv(tier, { 'mobile-sm': 120, mobile: 140, tablet: 100, laptop: 120, desktop: 140, tv: 180 });
+  const titleFS = rv(tier, { 'mobile-sm': '22px', mobile: '26px', tablet: '26px', laptop: '32px', desktop: '36px', tv: '44px' });
+  const descFS = rv(tier, { 'mobile-sm': '14px', mobile: '16px', tablet: '14px', laptop: '16px', desktop: '18px', tv: '22px' });
+  const pad = rv(tier, { 'mobile-sm': '14px', mobile: '18px', tablet: '18px', laptop: '24px', desktop: '28px', tv: '36px' });
+  const badgeSz = rv(tier, { 'mobile-sm': 24, mobile: 30, tablet: 28, laptop: 28, desktop: 32, tv: 38 });
+  const bottomOffset = rv(tier, { 'mobile-sm': 180, mobile: 220, tablet: 140, laptop: 120, desktop: 140, tv: 180 });
 
   const centerIdx = Math.floor(cards.length / 2);
 
@@ -642,7 +641,7 @@ function ArcCardSlider({ cards, rotationOffset, tier }: ArcSliderProps) {
         const idx = String(i + 1).padStart(2, "0");
 
         return (
-          <div key={i} style={{ position: "absolute", bottom: `${-y + bottomOffset}px`, left: `calc(50% + ${x}px - ${cardW / 2}px)`, width: `${cardW}px`, height: `${cardH}px`, borderRadius: cardBR, boxShadow: "0 12px 40px rgba(255,85,0,0.15)", transform: `rotate(${deg}deg) translateZ(0)`, transformOrigin: `${cardW / 2}px ${arcRadius}px`, overflow: "hidden", display: "flex", flexDirection: "column", backgroundImage: `url(${card.image})`, backgroundSize: "cover", backgroundPosition: "center", border: "1px solid rgba(255,85,0,0.2)", WebkitBackfaceVisibility: "hidden", willChange: "transform" }}>
+          <div key={i} style={{ position: "absolute", bottom: `${-y + bottomOffset}px`, left: `calc(50% + ${x}px - ${cardW / 2}px)`, width: `${cardW}px`, height: `${cardH}px`, borderRadius: cardBR, boxShadow: "0 12px 40px rgba(255,85,0,0.15)", transform: `rotate(${deg}deg) translateZ(0)`, transformOrigin: `${cardW / 2}px ${arcRadius}px`, overflow: "hidden", display: "flex", flexDirection: "column", backgroundImage: `url(${card.image})`, backgroundSize: "cover", backgroundPosition: "center", border: "1px solid rgba(255,85,0,0.2)", WebkitBackfaceVisibility: "hidden" }}>
             <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(10,6,8,0.95) 0%, rgba(10,6,8,0.4) 50%, transparent 100%)" }} />
             <div style={{ position: "relative", zIndex: 2, padding: pad, display: "flex", justifyContent: "flex-end" }}>
               <div style={{ width: `${badgeSz}px`, height: `${badgeSz}px`, borderRadius: "50%", border: "1.5px solid rgba(255,85,0,0.5)", color: "#FF5500", fontFamily: "'Bebas Neue', sans-serif", fontSize: `${Math.max(12, badgeSz * 0.5)}px`, display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "rgba(10,6,8,0.6)", backdropFilter: "blur(4px)" }}>{idx}</div>
@@ -693,7 +692,7 @@ function ContactUI({ tier, isMobile }: { tier: DeviceTier; isMobile: boolean }) 
   const headingFS = rv(tier, { 'mobile-sm': '40px', mobile: '48px', tablet: '56px', laptop: '64px', desktop: '72px', tv: '90px' });
 
   return (
-    <div style={{ width: "100%", maxWidth: containerMaxW, padding: `0 ${containerPx}`, boxSizing: "border-box", marginTop: isMobile ? "8vh" : "0" }}>
+    <div style={{ width: "100%", maxWidth: containerMaxW, padding: `0 ${containerPx}`, boxSizing: "border-box", marginTop: isMobile ? "12dvh" : "0" }}>
       <div style={{ textAlign: "center", marginBottom: isMobile ? "24px" : "48px" }}>
         <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: headingFS, color: "#F5EDD8", letterSpacing: "0.05em", margin: 0, textShadow: "0 4px 20px rgba(0,0,0,0.8)" }}>
           GET IN <span style={{ color: "#FF5500" }}>TOUCH</span>
