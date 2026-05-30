@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, CSSProperties } from "react";
+import { useEffect, useRef, useState, useMemo, CSSProperties } from "react";
 import { Send, User, Mail, MessageSquare, FileText, Phone } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -9,7 +9,7 @@ const PORTAL_BG = "https://res.cloudinary.com/dy5er7kv5/image/upload/q_auto/f_au
 const CURTAIN_LEFT = "https://res.cloudinary.com/dy5er7kv5/image/upload/q_auto/f_auto/v1779706559/curtain_left_znkmva.png";
 const CURTAIN_RIGHT = "https://res.cloudinary.com/dy5er7kv5/image/upload/q_auto/f_auto/v1779706564/curtain_right_paeyym.png";
 const BOTTOM_CLOUDS = "https://res.cloudinary.com/dy5er7kv5/image/upload/q_auto/f_auto/v1779706555/bottom_clouds_xskut6.png";
-const WORLD_BG = "/images/platter.jpg"; // Our Star BBQ charcoal pit frame
+const WORLD_BG = "/images/platter.jpg";
 
 const SCENE1_CARDS = [
   "/images/shawarma-hero.jpeg",
@@ -17,7 +17,6 @@ const SCENE1_CARDS = [
   "/images/charcoal-chicken.jpeg"
 ];
 
-// Card Data for Scene 2
 const SCENE2_CARDS = [
   { title: 'Whole Charcoal Chicken', desc: '24hr marinated, live oak charcoal grilled', image: '/images/charcoal-chicken.jpeg' },
   { title: 'Signature Shawarma', desc: 'Flame-grilled thigh, house tahini, fresh pita', image: '/images/shawarma-hero.jpeg' },
@@ -32,21 +31,67 @@ const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t);
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const clamp = (val: number, min: number, max: number) => Math.max(min, Math.min(max, val));
 
-// Custom responsive hook
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(false);
+// ═══════════════════════════════════════════════════════════════
+// RESPONSIVE HOOKS
+// ═══════════════════════════════════════════════════════════════
+
+type DeviceTier = 'mobile-sm' | 'mobile' | 'tablet' | 'laptop' | 'desktop' | 'tv';
+
+function useBreakpoint(): DeviceTier {
+  const [tier, setTier] = useState<DeviceTier>('laptop');
+
   useEffect(() => {
-    const media = window.matchMedia("(max-width: 767px)");
-    setIsMobile(media.matches);
-    const listener = (e: MediaQueryListEvent) => setIsMobile(e.matches);
-    media.addEventListener("change", listener);
-    return () => media.removeEventListener("change", listener);
+    const evaluate = () => {
+      const w = window.innerWidth;
+      if (w < 480) return 'mobile-sm';
+      if (w < 768) return 'mobile';
+      if (w < 1024) return 'tablet';
+      if (w < 1536) return 'laptop';
+      if (w < 2560) return 'desktop';
+      return 'tv';
+    };
+
+    const update = () => setTier(evaluate());
+    update();
+
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
   }, []);
-  return isMobile;
+
+  return tier;
 }
 
+function useIsLandscape(): boolean {
+  const [isLandscape, setIsLandscape] = useState(false);
+
+  useEffect(() => {
+    const update = () => setIsLandscape(window.innerWidth > window.innerHeight);
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+
+  return isLandscape;
+}
+
+// Convenience: is the device mobile-ish (for existing mobile/desktop splits)?
+function tierIsMobile(tier: DeviceTier): boolean {
+  return tier === 'mobile-sm' || tier === 'mobile';
+}
+
+// Get responsive value based on tier
+function responsiveVal<T>(tier: DeviceTier, values: { 'mobile-sm': T; mobile: T; tablet: T; laptop: T; desktop: T; tv: T }): T {
+  return values[tier];
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MAIN APP COMPONENT
+// ═══════════════════════════════════════════════════════════════
+
 export default function App() {
-  const isMobile = useIsMobile();
+  const tier = useBreakpoint();
+  const isLandscape = useIsLandscape();
+  const isMobile = tierIsMobile(tier);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
@@ -62,10 +107,20 @@ export default function App() {
   const curtainLRef = useRef<HTMLDivElement>(null);
   const curtainRRef = useRef<HTMLDivElement>(null);
 
-  // Scroll Progress Listener (Optimized for Mobile Touch Scrolling)
+  // Scroll container height — adaptive to aspect ratio
+  const scrollHeight = useMemo(() => {
+    if (typeof window === 'undefined') return '600vh';
+    // Wide screens need more scroll, tall screens need less
+    if (tier === 'tv') return '650vh';
+    if (tier === 'desktop') return '620vh';
+    if (isLandscape && isMobile) return '700vh'; // phone landscape needs more
+    return '600vh';
+  }, [tier, isLandscape, isMobile]);
+
+  // Scroll Progress Listener
   useEffect(() => {
     let animId: number;
-    
+
     const updateScroll = () => {
       const container = document.getElementById("outer-container");
       if (container) {
@@ -74,9 +129,8 @@ export default function App() {
       }
       animId = requestAnimationFrame(updateScroll);
     };
-    
-    animId = requestAnimationFrame(updateScroll);
 
+    animId = requestAnimationFrame(updateScroll);
     return () => cancelAnimationFrame(animId);
   }, []);
 
@@ -93,7 +147,7 @@ export default function App() {
     };
   }, []);
 
-  // Smooth Mouse Parallax Loop
+  // Smooth Mouse Parallax Loop (desktop/laptop only)
   useEffect(() => {
     const mouse = { targetX: 0, targetY: 0, currentX: 0, currentY: 0 };
 
@@ -122,10 +176,10 @@ export default function App() {
     };
   }, []);
 
-  // ---------------------------------------------------------------------------
-  // ANIMATION TIMELINE & MATH (600vh total scroll)
-  // ---------------------------------------------------------------------------
-  const ep = easeInOut(scrollProgress); // 0 to 1
+  // ═══════════════════════════════════════════════════════════════
+  // ANIMATION TIMELINE & MATH
+  // ═══════════════════════════════════════════════════════════════
+  const ep = easeInOut(scrollProgress);
 
   // SCENE 1 (Hero): 0% to 20%
   const scene1Opacity = clamp(1 - scrollProgress / 0.18, 0, 1);
@@ -159,21 +213,33 @@ export default function App() {
 
   // Arc Slider rotation progress (0 to 1 between 30% and 55%)
   const sliderProg = clamp((scrollProgress - 0.30) / 0.25, 0, 1);
-  const arcSweepDeg = (SCENE2_CARDS.length - 1) * (isMobile ? 12 : 9);
+  const cardSpacingDeg = responsiveVal(tier, {
+    'mobile-sm': 15, mobile: 12, tablet: 10, laptop: 9, desktop: 8, tv: 7
+  });
+  const arcSweepDeg = (SCENE2_CARDS.length - 1) * cardSpacingDeg;
   const sliderRotationOffset = lerp(0, arcSweepDeg, sliderProg);
 
-  // Floating Logo Anim calculations
+  // Floating Logo Anim calculations — responsive
   const logoProg = clamp(scrollProgress / 0.18, 0, 1);
   const logoT = easeInOut(logoProg);
-  const logoTargetY = isMobile ? 42 : 46;
-  const logoSize = lerp(isMobile ? 90 : 130, 48, logoT);
+  const logoInitSize = responsiveVal(tier, {
+    'mobile-sm': 70, mobile: 90, tablet: 110, laptop: 130, desktop: 150, tv: 180
+  });
+  const logoFinalSize = responsiveVal(tier, {
+    'mobile-sm': 36, mobile: 42, tablet: 44, laptop: 48, desktop: 52, tv: 60
+  });
+  const logoTargetY = responsiveVal(tier, {
+    'mobile-sm': 32, mobile: 38, tablet: 40, laptop: 46, desktop: 48, tv: 54
+  });
+  const logoSize = lerp(logoInitSize, logoFinalSize, logoT);
   const logoBorderWidth = lerp(isMobile ? 3 : 4, 2, logoT);
   const logoShadowBlur = lerp(isMobile ? 25 : 35, 15, logoT);
   const logoShadowOpacity = lerp(0.8, 0.5, logoT);
 
-  // Mouse Parallax offsets
-  const mx = mousePos.x;
-  const my = mousePos.y;
+  // Mouse Parallax offsets — reduce on touch devices
+  const parallaxIntensity = isMobile ? 0 : (tier === 'tablet' ? 0.5 : 1);
+  const mx = mousePos.x * parallaxIntensity;
+  const my = mousePos.y * parallaxIntensity;
 
   // Filter to make reference assets look like fire/smoke
   const fireFilter = "sepia(1) hue-rotate(-20deg) saturate(2) brightness(0.6)";
@@ -240,7 +306,7 @@ export default function App() {
     transformOrigin: "left center",
     transform: `translate(${curtainLTranslateX}%, 0%) scale(${lerp(1, 1.3, ep)}) translate(${-mx * 14}px, ${-my * 14 * 0.3}px)`,
     transition: curtainTransition,
-    filter: "sepia(1) hue-rotate(-30deg) saturate(1.5) brightness(0.4)", // Dark red velvet / smoke
+    filter: "sepia(1) hue-rotate(-30deg) saturate(1.5) brightness(0.4)",
     zIndex: 16,
   };
 
@@ -254,13 +320,55 @@ export default function App() {
     zIndex: 16,
   };
 
+  // Responsive nav values
+  const navPadX = responsiveVal(tier, {
+    'mobile-sm': '12px', mobile: '16px', tablet: '24px', laptop: '40px', desktop: '48px', tv: '64px'
+  });
+  const navPadY = responsiveVal(tier, {
+    'mobile-sm': '12px', mobile: '14px', tablet: '16px', laptop: '20px', desktop: '22px', tv: '28px'
+  });
+  const navFontSize = responsiveVal(tier, {
+    'mobile-sm': '12px', mobile: '13px', tablet: '14px', laptop: '15px', desktop: '16px', tv: '20px'
+  });
+  const navGap = responsiveVal(tier, {
+    'mobile-sm': '16px', mobile: '20px', tablet: '24px', laptop: '32px', desktop: '40px', tv: '52px'
+  });
+
+  // Responsive hero values
+  const heroTextLeft = responsiveVal(tier, {
+    'mobile-sm': '24px', mobile: '24px', tablet: '36px', laptop: '52px', desktop: '72px', tv: '100px'
+  });
+  const heroTextMaxW = responsiveVal(tier, {
+    'mobile-sm': '280px', mobile: '300px', tablet: '340px', laptop: '420px', desktop: '520px', tv: '660px'
+  });
+  const heroCardSize = responsiveVal(tier, {
+    'mobile-sm': 120, mobile: 140, tablet: 150, laptop: 160, desktop: 190, tv: 240
+  });
+  const heroCardRight = responsiveVal(tier, {
+    'mobile-sm': '16px', mobile: '20px', tablet: '28px', laptop: '40px', desktop: '60px', tv: '100px'
+  });
+  const heroDescFontSize = responsiveVal(tier, {
+    'mobile-sm': '14px', mobile: '15px', tablet: '17px', laptop: '20px', desktop: '22px', tv: '28px'
+  });
+  const heroCardTempFontSize = responsiveVal(tier, {
+    'mobile-sm': 28, mobile: 36, tablet: 38, laptop: 40, desktop: 46, tv: 56
+  });
+  const heroCardLabelFontSize = responsiveVal(tier, {
+    'mobile-sm': '11px', mobile: '12px', tablet: '13px', laptop: '14px', desktop: '15px', tv: '18px'
+  });
+
+  // Arc slider bottom offset
+  const arcSliderBottom = responsiveVal(tier, {
+    'mobile-sm': '10px', mobile: '20px', tablet: '24px', laptop: '30px', desktop: '36px', tv: '50px'
+  });
+
   return (
-    <div id="outer-container" style={{ height: "600vh", position: "relative", backgroundColor: "#0a0608" }}>
-      
+    <div id="outer-container" style={{ height: scrollHeight, position: "relative", backgroundColor: "#0a0608" }}>
+
       {/* Sticky Viewport */}
-      <div style={{ position: "sticky", top: 0, height: "100vh", overflow: "hidden", backgroundColor: "#0a0608" }}>
-        
-        {/* Navigation Bar (z-index: 50) */}
+      <div style={{ position: "sticky", top: 0, height: "100vh", width: "100%", overflow: "hidden", backgroundColor: "#0a0608" }}>
+
+        {/* ═══ NAVIGATION BAR (z-index: 50) ═══ */}
         <nav
           style={{
             position: "absolute",
@@ -272,38 +380,42 @@ export default function App() {
             justifyContent: "space-between",
             alignItems: "center",
             boxSizing: "border-box",
+            padding: `${navPadY} ${navPadX}`,
           }}
-          className="px-5 py-[18px] md:px-12 md:py-[22px]"
         >
-          {/* Mobile Nav Links */}
-          <div className="flex md:hidden w-full items-center justify-between">
-            <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "14px", letterSpacing: "0.12em", textTransform: "uppercase", color: "#FF5500", opacity: 0.9 }}>
-              Menu
-            </span>
-            <div className="w-12 h-12 flex-shrink-0" />
-            <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "14px", letterSpacing: "0.12em", textTransform: "uppercase", color: "#FF5500", opacity: 0.9 }}>
-              Contact
-            </span>
-          </div>
+          {/* Mobile Nav Links (< tablet) */}
+          {isMobile && (
+            <div style={{ display: "flex", width: "100%", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: navFontSize, letterSpacing: "0.12em", textTransform: "uppercase", color: "#FF5500", opacity: 0.9 }}>
+                Menu
+              </span>
+              <div style={{ width: `${logoFinalSize}px`, height: `${logoFinalSize}px`, flexShrink: 0 }} />
+              <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: navFontSize, letterSpacing: "0.12em", textTransform: "uppercase", color: "#FF5500", opacity: 0.9 }}>
+                Contact
+              </span>
+            </div>
+          )}
 
-          {/* Desktop Nav Links */}
-          <div className="hidden md:flex w-full items-center justify-between">
-            <div style={{ display: "flex", gap: "36px" }}>
-              {["Our Story", "Menu", "Craft"].map((link) => (
-                <span key={link} style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "15px", letterSpacing: "0.12em", textTransform: "uppercase", color: "#fff", opacity: 0.9, cursor: "pointer" }}>
-                  {link}
-                </span>
-              ))}
+          {/* Desktop Nav Links (>= tablet) */}
+          {!isMobile && (
+            <div style={{ display: "flex", width: "100%", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", gap: navGap }}>
+                {["Our Story", "Menu", "Craft"].map((link) => (
+                  <span key={link} style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: navFontSize, letterSpacing: "0.12em", textTransform: "uppercase", color: "#fff", opacity: 0.9, cursor: "pointer" }}>
+                    {link}
+                  </span>
+                ))}
+              </div>
+              <div style={{ width: `${logoFinalSize}px`, height: `${logoFinalSize}px`, flexShrink: 0 }} />
+              <div style={{ display: "flex", gap: navGap }}>
+                {["Gallery", "Reviews", "Contact"].map((link) => (
+                  <span key={link} style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: navFontSize, letterSpacing: "0.12em", textTransform: "uppercase", color: "#fff", opacity: 0.9, cursor: "pointer" }}>
+                    {link}
+                  </span>
+                ))}
+              </div>
             </div>
-            <div className="w-12 h-12 flex-shrink-0" />
-            <div style={{ display: "flex", gap: "36px" }}>
-              {["Gallery", "Reviews", "Contact"].map((link) => (
-                <span key={link} style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "15px", letterSpacing: "0.12em", textTransform: "uppercase", color: "#fff", opacity: 0.9, cursor: "pointer" }}>
-                  {link}
-                </span>
-              ))}
-            </div>
-          </div>
+          )}
         </nav>
 
         {/* Top Fade Gradient (z-index: 45) */}
@@ -339,7 +451,7 @@ export default function App() {
         <div
           style={{
             position: "absolute",
-            bottom: isMobile ? "20px" : "30px",
+            bottom: arcSliderBottom,
             left: 0,
             right: 0,
             opacity: scene2Opacity,
@@ -348,7 +460,7 @@ export default function App() {
             transition: "opacity 0.4s ease",
           }}
         >
-          <ArcCardSlider cards={SCENE2_CARDS} rotationOffset={sliderRotationOffset} isMobile={isMobile} />
+          <ArcCardSlider cards={SCENE2_CARDS} rotationOffset={sliderRotationOffset} tier={tier} />
         </div>
 
         {/* Layer 3: Portal Frame (z-index: 15) */}
@@ -381,7 +493,7 @@ export default function App() {
         </div>
 
         {/* ═══════════════════════════════════════════════════════════ */}
-        {/*  SCENE 1 UI: HERO (z-index: 20)                             */}
+        {/*  SCENE 1 UI: HERO (z-index: 20)                          */}
         {/* ═══════════════════════════════════════════════════════════ */}
         <div
           style={{
@@ -393,103 +505,122 @@ export default function App() {
             transition: "opacity 0.3s ease",
           }}
         >
-          {/* Mobile layout (md:hidden) */}
-          <div
-            className="md:hidden flex flex-col items-center justify-between h-full"
-            style={{
-              padding: "80px 24px 100px",
-              boxSizing: "border-box",
-              opacity: uiVisible ? 0.9 : 0,
-              transform: uiVisible ? "translateY(0)" : "translateY(20px)",
-              transition: "opacity 0.9s ease 0.3s, transform 0.9s ease 0.3s",
-            }}
-          >
-            <div className="text-center mt-[12vh]">
-              <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(32px, 9vw, 50px)", letterSpacing: "0.12em", color: "#FF5500", margin: 0 }}>
-                STAR <span style={{ color: "#F5EDD8", fontSize: "0.8em" }}>›</span> BBQ
-              </h2>
-              <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(52px, 16vw, 80px)", lineHeight: 1.0, color: "#F5EDD8", margin: "8px 0 16px 0" }}>
-                FIRE-CRAFTED
-              </h1>
-              <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "16px", lineHeight: "1.6", color: "rgba(245,237,216,0.7)", maxWidth: "280px", margin: "0 auto" }}>
-                Hyderabad&apos;s finest fire kitchen. Slow-marinated, live-flame grilled. No gas, no shortcuts. Real charcoal BBQ.
-              </p>
-            </div>
-
-            <div style={{ width: "140px", height: "140px", borderRadius: "22px", backgroundImage: `url(${SCENE1_CARDS[1]})`, backgroundSize: "cover", backgroundPosition: "center", boxShadow: "0 8px 32px rgba(255,85,0,0.2)", position: "relative", overflow: "hidden" }}>
-              <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "60%", background: "linear-gradient(to top, rgba(10,6,8,0.9), transparent)" }} />
-              <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "44%", backdropFilter: "blur(10px)", backgroundColor: "rgba(10,6,8,0.4)" }} />
-              <div style={{ position: "absolute", bottom: "14px", left: "14px", display: "flex", flexDirection: "column" }}>
-                <span style={{ color: "#FF5500", fontFamily: "'Bebas Neue', sans-serif", fontSize: "36px", lineHeight: "1.0" }}>800°</span>
-                <span style={{ color: "#F5EDD8", fontFamily: "'Barlow Condensed', sans-serif", fontSize: "13px", opacity: 0.9 }}>Charcoal Temp</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Desktop layout (hidden md:block) */}
-          <div className="hidden md:block">
+          {/* Mobile layout */}
+          {isMobile && (
             <div
               style={{
-                position: "absolute",
-                top: "46%",
-                left: "60px",
-                maxWidth: "440px",
-                transform: "translateY(-50%)",
-                opacity: uiVisible ? 1 : 0,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "space-between",
+                height: "100%",
+                padding: isLandscape ? "60px 20px 40px" : `${tier === 'mobile-sm' ? '70px 16px 80px' : '80px 24px 100px'}`,
+                boxSizing: "border-box",
+                opacity: uiVisible ? 0.9 : 0,
+                transform: uiVisible ? "translateY(0)" : "translateY(20px)",
                 transition: "opacity 0.9s ease 0.3s, transform 0.9s ease 0.3s",
               }}
             >
-              <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(36px, 5vw, 64px)", lineHeight: "1.1", letterSpacing: "0.08em", color: "#FF5500", textShadow: "0 2px 24px rgba(0,0,0,0.7)", margin: 0 }}>
-                STAR <span style={{ color: "#F5EDD8" }}>›</span> BBQ
-              </h2>
-              <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(60px, 8vw, 100px)", lineHeight: "0.9", color: "#F5EDD8", textShadow: "0 2px 24px rgba(0,0,0,0.7)", margin: "12px 0 24px 0" }}>
-                FIRE-CRAFTED<br />SINCE DAY ONE
-              </h1>
-              <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "20px", lineHeight: "1.6", color: "rgba(245,237,216,0.85)", maxWidth: "340px", textShadow: "0 1px 12px rgba(0,0,0,0.8)", margin: 0 }}>
-                Hyderabad&apos;s finest fire kitchen. Slow-marinated, live-flame grilled. No gas, no shortcuts. Real charcoal BBQ.
-              </p>
-            </div>
+              <div style={{ textAlign: "center", marginTop: isLandscape ? "4vh" : "12vh" }}>
+                <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(28px, 9vw, 50px)", letterSpacing: "0.12em", color: "#FF5500", margin: 0 }}>
+                  STAR <span style={{ color: "#F5EDD8", fontSize: "0.8em" }}>›</span> BBQ
+                </h2>
+                <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(42px, 14vw, 80px)", lineHeight: 1.0, color: "#F5EDD8", margin: "8px 0 16px 0" }}>
+                  FIRE-CRAFTED
+                </h1>
+                <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: tier === 'mobile-sm' ? '14px' : '16px', lineHeight: "1.6", color: "rgba(245,237,216,0.7)", maxWidth: "280px", margin: "0 auto" }}>
+                  Hyderabad&apos;s finest fire kitchen. Slow-marinated, live-flame grilled. No gas, no shortcuts. Real charcoal BBQ.
+                </p>
+              </div>
 
-            <div
-              style={{
-                position: "absolute",
-                right: "40px",
-                top: "50%",
-                transform: "translateY(-50%)",
-                display: "flex",
-                gap: "14px",
-                opacity: uiVisible ? 1 : 0,
-                transition: "opacity 0.9s ease 0.55s, transform 0.9s ease 0.55s",
-              }}
-            >
-              {/* Card 1: 800 Degree Temp */}
-              <div style={{ width: "160px", height: "160px", borderRadius: "24px", backgroundImage: `url(${SCENE1_CARDS[1]})`, backgroundSize: "cover", backgroundPosition: "center", boxShadow: "0 8px 32px rgba(255,85,0,0.2)", position: "relative", overflow: "hidden" }}>
+              <div style={{
+                width: `${heroCardSize}px`,
+                height: `${heroCardSize}px`,
+                borderRadius: "22px",
+                backgroundImage: `url(${SCENE1_CARDS[1]})`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                boxShadow: "0 8px 32px rgba(255,85,0,0.2)",
+                position: "relative",
+                overflow: "hidden",
+                flexShrink: 0,
+              }}>
                 <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "60%", background: "linear-gradient(to top, rgba(10,6,8,0.9), transparent)" }} />
                 <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "44%", backdropFilter: "blur(10px)", backgroundColor: "rgba(10,6,8,0.4)" }} />
                 <div style={{ position: "absolute", bottom: "14px", left: "14px", display: "flex", flexDirection: "column" }}>
-                  <span style={{ color: "#FF5500", fontFamily: "'Bebas Neue', sans-serif", fontSize: "40px", lineHeight: "1.0" }}>800°</span>
-                  <span style={{ color: "#F5EDD8", fontFamily: "'Barlow Condensed', sans-serif", fontSize: "14px", opacity: 0.9 }}>Charcoal Temp</span>
-                </div>
-              </div>
-
-              {/* Card 2: 24hr Marination */}
-              <div style={{ width: "160px", height: "160px", borderRadius: "24px", backgroundImage: `url(${SCENE1_CARDS[0]})`, backgroundSize: "cover", backgroundPosition: "center", boxShadow: "0 8px 32px rgba(255,85,0,0.2)", position: "relative", overflow: "hidden" }}>
-                <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "60%", background: "linear-gradient(to top, rgba(10,6,8,0.9), transparent)" }} />
-                <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "44%", backdropFilter: "blur(10px)", backgroundColor: "rgba(10,6,8,0.4)" }} />
-                <div style={{ position: "absolute", bottom: "14px", left: "14px", display: "flex", flexDirection: "column" }}>
-                  <span style={{ color: "#FF5500", fontFamily: "'Bebas Neue', sans-serif", fontSize: "40px", lineHeight: "1.0" }}>24 Hrs</span>
-                  <span style={{ color: "#F5EDD8", fontFamily: "'Barlow Condensed', sans-serif", fontSize: "14px", opacity: 0.9 }}>Slow Marinated</span>
+                  <span style={{ color: "#FF5500", fontFamily: "'Bebas Neue', sans-serif", fontSize: `${heroCardTempFontSize}px`, lineHeight: "1.0" }}>800°</span>
+                  <span style={{ color: "#F5EDD8", fontFamily: "'Barlow Condensed', sans-serif", fontSize: heroCardLabelFontSize, opacity: 0.9 }}>Charcoal Temp</span>
                 </div>
               </div>
             </div>
-          </div>
+          )}
+
+          {/* Desktop / Tablet layout */}
+          {!isMobile && (
+            <div>
+              <div
+                style={{
+                  position: "absolute",
+                  top: "46%",
+                  left: heroTextLeft,
+                  maxWidth: heroTextMaxW,
+                  transform: "translateY(-50%)",
+                  opacity: uiVisible ? 1 : 0,
+                  transition: "opacity 0.9s ease 0.3s, transform 0.9s ease 0.3s",
+                }}
+              >
+                <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(30px, 5vw, 72px)", lineHeight: "1.1", letterSpacing: "0.08em", color: "#FF5500", textShadow: "0 2px 24px rgba(0,0,0,0.7)", margin: 0 }}>
+                  STAR <span style={{ color: "#F5EDD8" }}>›</span> BBQ
+                </h2>
+                <h1 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(48px, 7vw, 110px)", lineHeight: "0.9", color: "#F5EDD8", textShadow: "0 2px 24px rgba(0,0,0,0.7)", margin: "12px 0 24px 0" }}>
+                  FIRE-CRAFTED<br />SINCE DAY ONE
+                </h1>
+                <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: heroDescFontSize, lineHeight: "1.6", color: "rgba(245,237,216,0.85)", maxWidth: heroTextMaxW, textShadow: "0 1px 12px rgba(0,0,0,0.8)", margin: 0 }}>
+                  Hyderabad&apos;s finest fire kitchen. Slow-marinated, live-flame grilled. No gas, no shortcuts. Real charcoal BBQ.
+                </p>
+              </div>
+
+              <div
+                style={{
+                  position: "absolute",
+                  right: heroCardRight,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  display: "flex",
+                  gap: `${Math.max(10, heroCardSize * 0.08)}px`,
+                  opacity: uiVisible ? 1 : 0,
+                  transition: "opacity 0.9s ease 0.55s, transform 0.9s ease 0.55s",
+                }}
+              >
+                {/* Card 1: 800 Degree Temp */}
+                <div style={{ width: `${heroCardSize}px`, height: `${heroCardSize}px`, borderRadius: "24px", backgroundImage: `url(${SCENE1_CARDS[1]})`, backgroundSize: "cover", backgroundPosition: "center", boxShadow: "0 8px 32px rgba(255,85,0,0.2)", position: "relative", overflow: "hidden" }}>
+                  <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "60%", background: "linear-gradient(to top, rgba(10,6,8,0.9), transparent)" }} />
+                  <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "44%", backdropFilter: "blur(10px)", backgroundColor: "rgba(10,6,8,0.4)" }} />
+                  <div style={{ position: "absolute", bottom: "14px", left: "14px", display: "flex", flexDirection: "column" }}>
+                    <span style={{ color: "#FF5500", fontFamily: "'Bebas Neue', sans-serif", fontSize: `${heroCardTempFontSize}px`, lineHeight: "1.0" }}>800°</span>
+                    <span style={{ color: "#F5EDD8", fontFamily: "'Barlow Condensed', sans-serif", fontSize: heroCardLabelFontSize, opacity: 0.9 }}>Charcoal Temp</span>
+                  </div>
+                </div>
+
+                {/* Card 2: 24hr Marination */}
+                <div style={{ width: `${heroCardSize}px`, height: `${heroCardSize}px`, borderRadius: "24px", backgroundImage: `url(${SCENE1_CARDS[0]})`, backgroundSize: "cover", backgroundPosition: "center", boxShadow: "0 8px 32px rgba(255,85,0,0.2)", position: "relative", overflow: "hidden" }}>
+                  <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "60%", background: "linear-gradient(to top, rgba(10,6,8,0.9), transparent)" }} />
+                  <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "44%", backdropFilter: "blur(10px)", backgroundColor: "rgba(10,6,8,0.4)" }} />
+                  <div style={{ position: "absolute", bottom: "14px", left: "14px", display: "flex", flexDirection: "column" }}>
+                    <span style={{ color: "#FF5500", fontFamily: "'Bebas Neue', sans-serif", fontSize: `${heroCardTempFontSize}px`, lineHeight: "1.0" }}>24 Hrs</span>
+                    <span style={{ color: "#F5EDD8", fontFamily: "'Barlow Condensed', sans-serif", fontSize: heroCardLabelFontSize, opacity: 0.9 }}>Slow Marinated</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Slider Dots */}
           <div
             style={{
               position: "absolute",
               bottom: isMobile ? "28px" : "40px",
-              left: isMobile ? "50%" : "60px",
+              left: isMobile ? "50%" : heroTextLeft,
               transform: isMobile ? "translateX(-50%)" : "none",
               display: "flex",
               gap: "8px",
@@ -510,7 +641,7 @@ export default function App() {
             ))}
           </div>
 
-          {/* Scroll Cue (desktop only) */}
+          {/* Scroll Cue (non-mobile only) */}
           {!isMobile && (
             <div
               style={{
@@ -548,7 +679,7 @@ export default function App() {
         </div>
 
         {/* ═══════════════════════════════════════════════════════════ */}
-        {/*  SCENE 2 UI: MENU (z-index: 46)                             */}
+        {/*  SCENE 2 UI: MENU (z-index: 46)                          */}
         {/* ═══════════════════════════════════════════════════════════ */}
         <div
           style={{
@@ -562,15 +693,24 @@ export default function App() {
             opacity: scene2Opacity,
             pointerEvents: scene2Opacity > 0.1 ? "auto" : "none",
             transition: "opacity 0.3s ease",
-            paddingTop: isMobile ? "5vh" : "8vh",
+            paddingTop: responsiveVal(tier, {
+              'mobile-sm': '4vh', mobile: '5vh', tablet: '6vh', laptop: '8vh', desktop: '9vh', tv: '10vh'
+            }),
             boxSizing: "border-box",
           }}
         >
-          <div className="text-center px-6">
+          <div style={{ textAlign: "center", padding: "0 24px" }}>
             <h2
               style={{
                 fontFamily: "'Bebas Neue', sans-serif",
-                fontSize: isMobile ? "clamp(36px, 8vw, 50px)" : "clamp(50px, 6.5vw, 90px)",
+                fontSize: responsiveVal(tier, {
+                  'mobile-sm': 'clamp(30px, 8vw, 42px)',
+                  mobile: 'clamp(36px, 8vw, 50px)',
+                  tablet: 'clamp(42px, 6vw, 64px)',
+                  laptop: 'clamp(50px, 6.5vw, 90px)',
+                  desktop: 'clamp(60px, 5vw, 100px)',
+                  tv: 'clamp(72px, 4vw, 120px)',
+                }),
                 color: "#F5EDD8",
                 letterSpacing: "0.05em",
                 lineHeight: 1.05,
@@ -583,11 +723,15 @@ export default function App() {
             <p
               style={{
                 fontFamily: "'Barlow Condensed', sans-serif",
-                fontSize: isMobile ? "16px" : "22px",
+                fontSize: responsiveVal(tier, {
+                  'mobile-sm': '14px', mobile: '16px', tablet: '18px', laptop: '22px', desktop: '24px', tv: '30px'
+                }),
                 lineHeight: "1.6",
                 letterSpacing: "0.02em",
                 color: "rgba(245,237,216,0.85)",
-                maxWidth: isMobile ? "280px" : "500px",
+                maxWidth: responsiveVal(tier, {
+                  'mobile-sm': '260px', mobile: '300px', tablet: '400px', laptop: '500px', desktop: '600px', tv: '750px'
+                }),
                 margin: "12px auto 0 auto",
                 textShadow: "0 1px 10px rgba(0,0,0,0.8)",
               }}
@@ -598,7 +742,7 @@ export default function App() {
         </div>
 
         {/* ═══════════════════════════════════════════════════════════ */}
-        {/*  SCENE 2.5 UI: VIDEO BACKGROUND SECTION (z-index: 48)       */}
+        {/*  SCENE 2.5 UI: VIDEO BACKGROUND SECTION (z-index: 48)    */}
         {/* ═══════════════════════════════════════════════════════════ */}
         <div
           style={{
@@ -645,20 +789,25 @@ export default function App() {
 
           {/* Content Overlay */}
           <div
-            className="text-center px-6"
             style={{
               position: "relative",
               zIndex: 2,
-              maxWidth: "800px",
+              maxWidth: responsiveVal(tier, {
+                'mobile-sm': '340px', mobile: '400px', tablet: '600px', laptop: '800px', desktop: '900px', tv: '1100px'
+              }),
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
+              textAlign: "center",
+              padding: "0 20px",
             }}
           >
             <span
               style={{
                 fontFamily: "'Barlow Condensed', sans-serif",
-                fontSize: isMobile ? "14px" : "18px",
+                fontSize: responsiveVal(tier, {
+                  'mobile-sm': '12px', mobile: '14px', tablet: '16px', laptop: '18px', desktop: '20px', tv: '24px'
+                }),
                 letterSpacing: "0.4em",
                 color: "#FF5500",
                 fontWeight: "bold",
@@ -671,7 +820,14 @@ export default function App() {
             <h2
               style={{
                 fontFamily: "'Bebas Neue', sans-serif",
-                fontSize: isMobile ? "clamp(40px, 9vw, 60px)" : "clamp(60px, 7vw, 100px)",
+                fontSize: responsiveVal(tier, {
+                  'mobile-sm': 'clamp(32px, 9vw, 50px)',
+                  mobile: 'clamp(40px, 9vw, 60px)',
+                  tablet: 'clamp(48px, 7vw, 72px)',
+                  laptop: 'clamp(60px, 7vw, 100px)',
+                  desktop: 'clamp(72px, 5vw, 110px)',
+                  tv: 'clamp(84px, 4vw, 130px)',
+                }),
                 color: "#F5EDD8",
                 letterSpacing: "0.03em",
                 lineHeight: 0.95,
@@ -684,10 +840,14 @@ export default function App() {
             <p
               style={{
                 fontFamily: "'Barlow Condensed', sans-serif",
-                fontSize: isMobile ? "16px" : "22px",
+                fontSize: responsiveVal(tier, {
+                  'mobile-sm': '14px', mobile: '16px', tablet: '18px', laptop: '22px', desktop: '24px', tv: '30px'
+                }),
                 lineHeight: "1.6",
                 color: "rgba(245,237,216,0.85)",
-                maxWidth: "600px",
+                maxWidth: responsiveVal(tier, {
+                  'mobile-sm': '300px', mobile: '360px', tablet: '480px', laptop: '600px', desktop: '700px', tv: '850px'
+                }),
                 margin: "24px auto 36px auto",
                 textShadow: "0 2px 10px rgba(0,0,0,0.8)",
               }}
@@ -699,7 +859,9 @@ export default function App() {
             <div
               style={{
                 display: "flex",
-                gap: isMobile ? "16px" : "32px",
+                gap: responsiveVal(tier, {
+                  'mobile-sm': '10px', mobile: '14px', tablet: '20px', laptop: '28px', desktop: '36px', tv: '44px'
+                }),
                 flexWrap: "wrap",
                 justifyContent: "center",
               }}
@@ -715,16 +877,24 @@ export default function App() {
                     border: "1px solid rgba(255, 85, 0, 0.3)",
                     backgroundColor: "rgba(10, 6, 8, 0.6)",
                     backdropFilter: "blur(8px)",
-                    borderRadius: "16px",
-                    padding: isMobile ? "10px 16px" : "14px 24px",
-                    minWidth: "120px",
-                    textAlign: "center",
+                    borderRadius: responsiveVal(tier, {
+                      'mobile-sm': '12px', mobile: '14px', tablet: '16px', laptop: '16px', desktop: '18px', tv: '20px'
+                    }),
+                    padding: responsiveVal(tier, {
+                      'mobile-sm': '8px 12px', mobile: '10px 14px', tablet: '12px 18px', laptop: '14px 24px', desktop: '16px 28px', tv: '20px 36px'
+                    }),
+                    minWidth: responsiveVal(tier, {
+                      'mobile-sm': '85px', mobile: '100px', tablet: '110px', laptop: '120px', desktop: '140px', tv: '170px'
+                    }),
+                    textAlign: "center" as const,
                   }}
                 >
                   <div
                     style={{
                       fontFamily: "'Bebas Neue', sans-serif",
-                      fontSize: isMobile ? "18px" : "24px",
+                      fontSize: responsiveVal(tier, {
+                        'mobile-sm': '15px', mobile: '18px', tablet: '20px', laptop: '24px', desktop: '28px', tv: '34px'
+                      }),
                       color: "#FF5500",
                       letterSpacing: "0.05em",
                     }}
@@ -734,10 +904,12 @@ export default function App() {
                   <div
                     style={{
                       fontFamily: "'Barlow Condensed', sans-serif",
-                      fontSize: isMobile ? "11px" : "13px",
+                      fontSize: responsiveVal(tier, {
+                        'mobile-sm': '9px', mobile: '11px', tablet: '12px', laptop: '13px', desktop: '14px', tv: '17px'
+                      }),
                       color: "rgba(245, 237, 216, 0.6)",
                       letterSpacing: "0.05em",
-                      textTransform: "uppercase",
+                      textTransform: "uppercase" as const,
                       marginTop: "2px",
                     }}
                   >
@@ -750,7 +922,7 @@ export default function App() {
         </div>
 
         {/* ═══════════════════════════════════════════════════════════ */}
-        {/*  SCENE 3 UI: CONTACT (z-index: 60)                          */}
+        {/*  SCENE 3 UI: CONTACT (z-index: 60)                       */}
         {/* ═══════════════════════════════════════════════════════════ */}
         <div
           style={{
@@ -767,9 +939,10 @@ export default function App() {
             backdropFilter: `blur(${scene3Opacity * 12}px)`,
             backgroundImage: `radial-gradient(circle at center, transparent 10%, #0a0608 85%), linear-gradient(rgba(37, 211, 102, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(37, 211, 102, 0.03) 1px, transparent 1px)`,
             backgroundSize: "100% 100%, 36px 36px, 36px 36px",
+            overflowY: "auto",
           }}
         >
-          <ContactUI isMobile={isMobile} />
+          <ContactUI tier={tier} isLandscape={isLandscape} />
         </div>
 
         {/* Floating Star Logo (Animated from portal hole to navbar) */}
@@ -806,30 +979,59 @@ export default function App() {
   );
 }
 
-// ---------------------------------------------------------------------------
+// ═══════════════════════════════════════════════════════════════
 // SUB-COMPONENTS
-// ---------------------------------------------------------------------------
+// ═══════════════════════════════════════════════════════════════
 
 interface ArcSliderProps {
   cards: typeof SCENE2_CARDS;
   rotationOffset: number;
-  isMobile: boolean;
+  tier: DeviceTier;
 }
 
-function ArcCardSlider({ cards, rotationOffset, isMobile }: ArcSliderProps) {
-  const cardSpacingDeg = isMobile ? 12 : 9;
+function ArcCardSlider({ cards, rotationOffset, tier }: ArcSliderProps) {
+  const isMobile = tierIsMobile(tier);
+
+  const cardSpacingDeg = responsiveVal(tier, {
+    'mobile-sm': 15, mobile: 12, tablet: 10, laptop: 9, desktop: 8, tv: 7
+  });
+  const arcRadius = responsiveVal(tier, {
+    'mobile-sm': 700, mobile: 1000, tablet: 1400, laptop: 1800, desktop: 2200, tv: 3000
+  });
+  const cardW = responsiveVal(tier, {
+    'mobile-sm': 130, mobile: 170, tablet: 210, laptop: 260, desktop: 300, tv: 380
+  });
+  const cardH = responsiveVal(tier, {
+    'mobile-sm': 170, mobile: 210, tablet: 260, laptop: 320, desktop: 370, tv: 460
+  });
+  const containerH = responsiveVal(tier, {
+    'mobile-sm': '230px', mobile: '270px', tablet: '330px', laptop: '400px', desktop: '440px', tv: '560px'
+  });
+  const cardBorderRadius = responsiveVal(tier, {
+    'mobile-sm': '16px', mobile: '18px', tablet: '22px', laptop: '28px', desktop: '30px', tv: '36px'
+  });
+  const cardTitleSize = responsiveVal(tier, {
+    'mobile-sm': '18px', mobile: '22px', tablet: '26px', laptop: '32px', desktop: '36px', tv: '44px'
+  });
+  const cardDescSize = responsiveVal(tier, {
+    'mobile-sm': '11px', mobile: '13px', tablet: '14px', laptop: '16px', desktop: '18px', tv: '22px'
+  });
+  const cardPad = responsiveVal(tier, {
+    'mobile-sm': '10px', mobile: '14px', tablet: '18px', laptop: '24px', desktop: '28px', tv: '36px'
+  });
+  const indexBadgeSize = responsiveVal(tier, {
+    'mobile-sm': 22, mobile: 26, tablet: 28, laptop: 28, desktop: 32, tv: 38
+  });
+
   const totalCards = cards.length;
   const centerIndex = Math.floor(totalCards / 2);
-  const arcRadius = isMobile ? 1000 : 1800;
-  const cardW = isMobile ? 180 : 260;
-  const cardH = isMobile ? 220 : 320;
 
   return (
     <div
       style={{
         position: "relative",
         width: "100%",
-        height: isMobile ? "280px" : "400px",
+        height: containerH,
         display: "flex",
         justifyContent: "center",
       }}
@@ -841,7 +1043,10 @@ function ArcCardSlider({ cards, rotationOffset, isMobile }: ArcSliderProps) {
         const x = Math.sin(rad) * arcRadius;
         const y = arcRadius - Math.cos(rad) * arcRadius;
 
-        const bottomVal = -y + (isMobile ? 80 : 120);
+        const bottomOffset = responsiveVal(tier, {
+          'mobile-sm': 60, mobile: 75, tablet: 100, laptop: 120, desktop: 140, tv: 180
+        });
+        const bottomVal = -y + bottomOffset;
         const leftVal = `calc(50% + ${x}px - ${cardW / 2}px)`;
         const indexStr = String(i + 1).padStart(2, "0");
 
@@ -854,7 +1059,7 @@ function ArcCardSlider({ cards, rotationOffset, isMobile }: ArcSliderProps) {
               left: leftVal,
               width: `${cardW}px`,
               height: `${cardH}px`,
-              borderRadius: isMobile ? "20px" : "28px",
+              borderRadius: cardBorderRadius,
               boxShadow: "0 12px 40px rgba(255, 85, 0, 0.15)",
               transform: `rotate(${deg}deg)`,
               transformOrigin: `${cardW / 2}px ${arcRadius}px`,
@@ -870,18 +1075,18 @@ function ArcCardSlider({ cards, rotationOffset, isMobile }: ArcSliderProps) {
           >
             {/* Dark gradient overlay */}
             <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(10,6,8,0.95) 0%, rgba(10,6,8,0.4) 50%, transparent 100%)" }} />
-            
+
             {/* Top Right index */}
-            <div style={{ position: "relative", zIndex: 2, padding: isMobile ? "12px" : "20px", display: "flex", justifyContent: "flex-end" }}>
+            <div style={{ position: "relative", zIndex: 2, padding: cardPad, display: "flex", justifyContent: "flex-end" }}>
               <div
                 style={{
-                  width: "28px",
-                  height: "28px",
+                  width: `${indexBadgeSize}px`,
+                  height: `${indexBadgeSize}px`,
                   borderRadius: "50%",
                   border: "1.5px solid rgba(255, 85, 0, 0.5)",
                   color: "#FF5500",
                   fontFamily: "'Bebas Neue', sans-serif",
-                  fontSize: "14px",
+                  fontSize: `${Math.max(10, indexBadgeSize * 0.5)}px`,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -894,11 +1099,11 @@ function ArcCardSlider({ cards, rotationOffset, isMobile }: ArcSliderProps) {
             </div>
 
             {/* Bottom Title + Description */}
-            <div style={{ position: "relative", zIndex: 2, marginTop: "auto", padding: isMobile ? "16px" : "24px", textAlign: "left" }}>
+            <div style={{ position: "relative", zIndex: 2, marginTop: "auto", padding: cardPad, textAlign: "left" }}>
               <h4
                 style={{
                   fontFamily: "'Bebas Neue', sans-serif",
-                  fontSize: isMobile ? "24px" : "32px",
+                  fontSize: cardTitleSize,
                   letterSpacing: "0.05em",
                   lineHeight: 1.1,
                   margin: "0 0 6px 0",
@@ -910,7 +1115,7 @@ function ArcCardSlider({ cards, rotationOffset, isMobile }: ArcSliderProps) {
               <p
                 style={{
                   fontFamily: "'Barlow Condensed', sans-serif",
-                  fontSize: isMobile ? "14px" : "16px",
+                  fontSize: cardDescSize,
                   lineHeight: 1.4,
                   color: "rgba(245,237,216,0.75)",
                   margin: 0,
@@ -926,8 +1131,12 @@ function ArcCardSlider({ cards, rotationOffset, isMobile }: ArcSliderProps) {
   );
 }
 
-// Contact UI Component
-function ContactUI({ isMobile }: { isMobile: boolean }) {
+// ═══════════════════════════════════════════════════════════════
+// CONTACT UI — Fully Responsive
+// ═══════════════════════════════════════════════════════════════
+
+function ContactUI({ tier, isLandscape }: { tier: DeviceTier; isLandscape: boolean }) {
+  const isMobile = tierIsMobile(tier);
   const [formData, setFormData] = useState({ name: "", email: "", phone: "", subject: "", message: "" });
   const [isSending, setIsSending] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
@@ -952,142 +1161,213 @@ function ContactUI({ isMobile }: { isMobile: boolean }) {
     transition: "all 0.3s ease",
   });
 
-  const inputClass = "w-full rounded-xl px-5 py-3 md:py-3.5 text-white focus:outline-none placeholder:text-white/30 font-['Barlow_Condensed'] text-sm md:text-base";
+  // Use grid or stack depending on screen
+  const useGrid = tier === 'laptop' || tier === 'desktop' || tier === 'tv';
+
+  const containerMaxW = responsiveVal(tier, {
+    'mobile-sm': '100%', mobile: '100%', tablet: '680px', laptop: '960px', desktop: '1100px', tv: '1400px'
+  });
+  const containerPadX = responsiveVal(tier, {
+    'mobile-sm': '16px', mobile: '20px', tablet: '28px', laptop: '24px', desktop: '32px', tv: '48px'
+  });
+  const headingSize = responsiveVal(tier, {
+    'mobile-sm': 'clamp(28px, 8vw, 40px)',
+    mobile: 'clamp(32px, 7vw, 48px)',
+    tablet: 'clamp(40px, 6vw, 56px)',
+    laptop: 'clamp(48px, 5vw, 64px)',
+    desktop: 'clamp(56px, 4vw, 72px)',
+    tv: 'clamp(64px, 3vw, 90px)',
+  });
+  const subTextSize = responsiveVal(tier, {
+    'mobile-sm': '14px', mobile: '16px', tablet: '17px', laptop: '18px', desktop: '20px', tv: '24px'
+  });
+  const inputFontSize = responsiveVal(tier, {
+    'mobile-sm': '13px', mobile: '14px', tablet: '14px', laptop: '15px', desktop: '16px', tv: '18px'
+  });
+  const inputPadY = responsiveVal(tier, {
+    'mobile-sm': '10px', mobile: '12px', tablet: '12px', laptop: '14px', desktop: '14px', tv: '18px'
+  });
+  const chatBubbleSize = responsiveVal(tier, {
+    'mobile-sm': '13px', mobile: '14px', tablet: '14px', laptop: '14px', desktop: '15px', tv: '18px'
+  });
+
+  const inputClass = `w-full rounded-xl px-5 text-white focus:outline-none placeholder:text-white/30 font-['Barlow_Condensed']`;
 
   return (
-    <div className="w-full max-w-5xl px-6">
-      <div className="text-center mb-10">
-        <span style={{ fontFamily: "monospace", fontSize: "12px", color: "#25D366", letterSpacing: "0.3em", display: "block", marginBottom: "12px", textTransform: "uppercase" }}>
+    <div style={{ width: "100%", maxWidth: containerMaxW, padding: `0 ${containerPadX}`, boxSizing: "border-box" }}>
+      <div style={{ textAlign: "center", marginBottom: isMobile ? "24px" : "40px" }}>
+        <span style={{ fontFamily: "monospace", fontSize: tier === 'mobile-sm' ? "10px" : "12px", color: "#25D366", letterSpacing: "0.3em", display: "block", marginBottom: "12px", textTransform: "uppercase" }}>
           [ ZONE 03: COMMUNICATIONS PORTAL ]
         </span>
-        <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(36px, 6vw, 64px)", color: "#F5EDD8", letterSpacing: "0.05em", margin: 0 }}>
+        <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: headingSize, color: "#F5EDD8", letterSpacing: "0.05em", margin: 0 }}>
           LET&apos;S <span style={{ color: "#25D366" }}>CONNECT</span>
         </h2>
-        <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: "18px", color: "rgba(245,237,216,0.7)", marginTop: "8px" }}>
+        <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: subTextSize, color: "rgba(245,237,216,0.7)", marginTop: "8px" }}>
           Reach out via our WhatsApp portal instantly.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-8 items-start">
+      <div style={{
+        display: useGrid ? "grid" : "flex",
+        gridTemplateColumns: useGrid ? "2fr 3fr" : undefined,
+        flexDirection: useGrid ? undefined : "column",
+        gap: responsiveVal(tier, {
+          'mobile-sm': '20px', mobile: '24px', tablet: '28px', laptop: '32px', desktop: '36px', tv: '48px'
+        }),
+        alignItems: "start",
+      }}>
         {/* Left: Mock Chat */}
-        <div 
-          className="md:col-span-2 rounded-3xl overflow-hidden flex flex-col h-full max-h-[400px]"
+        <div
           style={{
+            borderRadius: "24px",
+            overflow: "hidden",
+            display: "flex",
+            flexDirection: "column",
+            maxHeight: isMobile ? "280px" : (isLandscape ? "50vh" : "400px"),
             border: "1px solid rgba(37, 211, 102, 0.25)",
             boxShadow: "0 0 25px rgba(37, 211, 102, 0.12)",
             backgroundColor: "rgba(12, 12, 14, 0.8)",
             backdropFilter: "blur(12px)",
           }}
         >
-          <div 
-            className="px-5 py-4 flex items-center gap-3"
+          <div
             style={{
+              padding: `${responsiveVal(tier, { 'mobile-sm': '12px', mobile: '14px', tablet: '16px', laptop: '16px', desktop: '18px', tv: '22px' })} ${responsiveVal(tier, { 'mobile-sm': '14px', mobile: '16px', tablet: '18px', laptop: '20px', desktop: '22px', tv: '28px' })}`,
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
               borderBottom: "1px solid rgba(37, 211, 102, 0.15)",
               backgroundColor: "rgba(31, 44, 52, 0.4)",
             }}
           >
-            <img src="/logo.jpg" alt="Star BBQ" className="w-10 h-10 rounded-full border border-white/10" />
+            <img src="/logo.jpg" alt="Star BBQ" style={{ width: responsiveVal(tier, { 'mobile-sm': '32px', mobile: '36px', tablet: '38px', laptop: '40px', desktop: '44px', tv: '52px' }), height: responsiveVal(tier, { 'mobile-sm': '32px', mobile: '36px', tablet: '38px', laptop: '40px', desktop: '44px', tv: '52px' }), borderRadius: "50%", border: "1px solid rgba(255,255,255,0.1)" }} />
             <div>
-              <h4 className="text-sm font-bold text-white font-['Barlow_Condensed'] tracking-wider">Star BBQ Support</h4>
-              <p className="text-[10px] text-[#25D366] tracking-widest uppercase font-bold font-mono">● STATUS: SECURE_ON</p>
+              <h4 style={{ fontSize: chatBubbleSize, fontWeight: "bold", color: "#fff", fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: "0.08em", margin: 0 }}>Star BBQ Support</h4>
+              <p style={{ fontSize: "10px", color: "#25D366", letterSpacing: "0.15em", textTransform: "uppercase", fontWeight: "bold", fontFamily: "monospace", margin: 0 }}>● STATUS: SECURE_ON</p>
             </div>
           </div>
-          <div className="p-5 flex-grow space-y-4 overflow-y-auto bg-[#0b141a]/30">
-            <div className="bg-[#202c33]/80 border border-white/5 text-[#F5EDD8] p-4 rounded-2xl rounded-tl-none max-w-[90%] text-sm font-['Barlow_Condensed'] tracking-wide">
+          <div style={{ padding: responsiveVal(tier, { 'mobile-sm': '14px', mobile: '16px', tablet: '18px', laptop: '20px', desktop: '22px', tv: '28px' }), flexGrow: 1, display: "flex", flexDirection: "column", gap: "12px", overflowY: "auto", background: "rgba(11, 20, 26, 0.3)" }}>
+            <div style={{ backgroundColor: "rgba(32, 44, 51, 0.8)", border: "1px solid rgba(255,255,255,0.05)", color: "#F5EDD8", padding: responsiveVal(tier, { 'mobile-sm': '10px', mobile: '12px', tablet: '14px', laptop: '16px', desktop: '16px', tv: '20px' }), borderRadius: "16px", borderTopLeftRadius: "0", maxWidth: "90%", fontSize: chatBubbleSize, fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: "0.04em" }}>
               Hey there! Welcome to the Star BBQ website. 🍗🔥
             </div>
-            <div className="bg-[#202c33]/80 border border-white/5 text-[#F5EDD8] p-4 rounded-2xl rounded-tl-none max-w-[90%] text-sm font-['Barlow_Condensed'] tracking-wide">
+            <div style={{ backgroundColor: "rgba(32, 44, 51, 0.8)", border: "1px solid rgba(255,255,255,0.05)", color: "#F5EDD8", padding: responsiveVal(tier, { 'mobile-sm': '10px', mobile: '12px', tablet: '14px', laptop: '16px', desktop: '16px', tv: '20px' }), borderRadius: "16px", borderTopLeftRadius: "0", maxWidth: "90%", fontSize: chatBubbleSize, fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: "0.04em" }}>
               Have questions about catering or private orders? Fill the form!
             </div>
           </div>
         </div>
 
         {/* Right: Form */}
-        <div className="md:col-span-3">
-          <form 
-            onSubmit={handleSubmit} 
-            className="rounded-3xl p-6 md:p-8 space-y-5"
+        <div>
+          <form
+            onSubmit={handleSubmit}
             style={{
+              borderRadius: "24px",
+              padding: responsiveVal(tier, { 'mobile-sm': '18px', mobile: '22px', tablet: '26px', laptop: '32px', desktop: '36px', tv: '48px' }),
+              display: "flex",
+              flexDirection: "column",
+              gap: responsiveVal(tier, { 'mobile-sm': '14px', mobile: '16px', tablet: '18px', laptop: '20px', desktop: '22px', tv: '28px' }),
               border: "1px solid rgba(255, 85, 0, 0.25)",
               boxShadow: "0 0 25px rgba(255, 85, 0, 0.1)",
               backgroundColor: "rgba(26, 21, 16, 0.5)",
               backdropFilter: "blur(12px)",
             }}
           >
-            <div style={{ fontFamily: "monospace", fontSize: "11px", color: "rgba(245,237,216,0.4)", letterSpacing: "0.15em", borderBottom: "1px solid rgba(255,85,0,0.15)", paddingBottom: "12px", marginBottom: "16px", textTransform: "uppercase" }}>
+            <div style={{ fontFamily: "monospace", fontSize: tier === 'mobile-sm' ? "9px" : "11px", color: "rgba(245,237,216,0.4)", letterSpacing: "0.15em", borderBottom: "1px solid rgba(255,85,0,0.15)", paddingBottom: "12px", textTransform: "uppercase" }}>
               // COMMUNICATIONS CHANNEL TRANSMISSION PORTAL
             </div>
 
-            <div className="space-y-1 relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40 z-10"><User className="w-5 h-5" /></span>
-              <input 
-                required 
-                type="text" 
-                value={formData.name} 
-                onChange={e => setFormData({...formData, name: e.target.value})} 
+            {/* Name */}
+            <div style={{ position: "relative" }}>
+              <span style={{ position: "absolute", left: "16px", top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.4)", zIndex: 10, display: "flex" }}><User style={{ width: "18px", height: "18px" }} /></span>
+              <input
+                required
+                type="text"
+                value={formData.name}
+                onChange={e => setFormData({...formData, name: e.target.value})}
                 onFocus={() => setFocusedField("name")}
                 onBlur={() => setFocusedField(null)}
-                className={inputClass} 
-                style={getFieldStyle("name")}
-                placeholder="Full Name" 
+                className={inputClass}
+                style={{ ...getFieldStyle("name"), width: "100%", borderRadius: "12px", padding: `${inputPadY} 16px ${inputPadY} 48px`, fontSize: inputFontSize, color: "#fff" }}
+                placeholder="Full Name"
               />
             </div>
-            <div className="space-y-1 relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40 z-10"><Mail className="w-5 h-5" /></span>
-              <input 
-                required 
-                type="email" 
-                value={formData.email} 
-                onChange={e => setFormData({...formData, email: e.target.value})} 
+
+            {/* Email */}
+            <div style={{ position: "relative" }}>
+              <span style={{ position: "absolute", left: "16px", top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.4)", zIndex: 10, display: "flex" }}><Mail style={{ width: "18px", height: "18px" }} /></span>
+              <input
+                required
+                type="email"
+                value={formData.email}
+                onChange={e => setFormData({...formData, email: e.target.value})}
                 onFocus={() => setFocusedField("email")}
                 onBlur={() => setFocusedField(null)}
-                className={inputClass} 
-                style={getFieldStyle("email")}
-                placeholder="Email Address" 
+                className={inputClass}
+                style={{ ...getFieldStyle("email"), width: "100%", borderRadius: "12px", padding: `${inputPadY} 16px ${inputPadY} 48px`, fontSize: inputFontSize, color: "#fff" }}
+                placeholder="Email Address"
               />
             </div>
-            <div className="space-y-1 relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/40 z-10"><Phone className="w-5 h-5" /></span>
-              <input 
-                required 
-                type="tel" 
-                value={formData.phone} 
-                onChange={e => setFormData({...formData, phone: e.target.value})} 
+
+            {/* Phone */}
+            <div style={{ position: "relative" }}>
+              <span style={{ position: "absolute", left: "16px", top: "50%", transform: "translateY(-50%)", color: "rgba(255,255,255,0.4)", zIndex: 10, display: "flex" }}><Phone style={{ width: "18px", height: "18px" }} /></span>
+              <input
+                required
+                type="tel"
+                value={formData.phone}
+                onChange={e => setFormData({...formData, phone: e.target.value})}
                 onFocus={() => setFocusedField("phone")}
                 onBlur={() => setFocusedField(null)}
-                className={inputClass} 
-                style={getFieldStyle("phone")}
-                placeholder="Mobile Number" 
+                className={inputClass}
+                style={{ ...getFieldStyle("phone"), width: "100%", borderRadius: "12px", padding: `${inputPadY} 16px ${inputPadY} 48px`, fontSize: inputFontSize, color: "#fff" }}
+                placeholder="Mobile Number"
               />
             </div>
-            <div className="space-y-1 relative">
-              <span className="absolute left-4 top-5 text-white/40 z-10"><MessageSquare className="w-5 h-5" /></span>
-              <textarea 
-                required 
-                value={formData.message} 
-                onChange={e => setFormData({...formData, message: e.target.value})} 
+
+            {/* Message */}
+            <div style={{ position: "relative" }}>
+              <span style={{ position: "absolute", left: "16px", top: "18px", color: "rgba(255,255,255,0.4)", zIndex: 10, display: "flex" }}><MessageSquare style={{ width: "18px", height: "18px" }} /></span>
+              <textarea
+                required
+                value={formData.message}
+                onChange={e => setFormData({...formData, message: e.target.value})}
                 onFocus={() => setFocusedField("message")}
                 onBlur={() => setFocusedField(null)}
-                rows={3} 
-                className={`${inputClass} resize-none pt-4`} 
-                style={{
-                  ...getFieldStyle("message"),
-                  paddingTop: "16px",
-                }}
-                placeholder="Your message..." 
+                rows={isMobile ? 2 : 3}
+                className={inputClass}
+                style={{ ...getFieldStyle("message"), width: "100%", borderRadius: "12px", padding: `18px 16px 12px 48px`, fontSize: inputFontSize, color: "#fff", resize: "none" }}
+                placeholder="Your message..."
               />
             </div>
-            <button 
-              type="submit" 
-              disabled={isSending} 
+
+            <button
+              type="submit"
+              disabled={isSending}
               onMouseEnter={() => setBtnHover(true)}
               onMouseLeave={() => setBtnHover(false)}
-              className="w-full py-4 bg-[#25D366] rounded-xl text-white font-bold tracking-widest uppercase text-base flex items-center justify-center gap-3 hover:bg-[#20bd5a] transition-all duration-300 font-['Bebas_Neue'] disabled:opacity-50"
               style={{
+                width: "100%",
+                padding: responsiveVal(tier, { 'mobile-sm': '12px', mobile: '14px', tablet: '14px', laptop: '16px', desktop: '16px', tv: '20px' }),
+                backgroundColor: "#25D366",
+                borderRadius: "12px",
+                color: "#fff",
+                fontWeight: "bold",
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                fontSize: responsiveVal(tier, { 'mobile-sm': '14px', mobile: '15px', tablet: '15px', laptop: '16px', desktop: '17px', tv: '20px' }),
+                fontFamily: "'Bebas Neue', sans-serif",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "12px",
+                border: "none",
+                cursor: isSending ? "not-allowed" : "pointer",
+                opacity: isSending ? 0.5 : 1,
                 boxShadow: btnHover ? "0 0 25px rgba(37, 211, 102, 0.6)" : "0 0 10px rgba(37, 211, 102, 0.2)",
+                transition: "all 0.3s ease",
               }}
             >
-              {isSending ? "Opening WhatsApp..." : "Send via WhatsApp"} <Send className="w-5 h-5" />
+              {isSending ? "Opening WhatsApp..." : "Send via WhatsApp"} <Send style={{ width: "18px", height: "18px" }} />
             </button>
           </form>
         </div>
@@ -1096,14 +1376,14 @@ function ContactUI({ isMobile }: { isMobile: boolean }) {
   );
 }
 
-// ---------------------------------------------------------------------------
+// ═══════════════════════════════════════════════════════════════
 // ICON COMPONENTS
-// ---------------------------------------------------------------------------
+// ═══════════════════════════════════════════════════════════════
 
 function StarLogo() {
   return (
-    <div className="flex flex-col items-center">
-      <img src="/logo.jpg" alt="Logo" className="w-12 h-12 rounded-full border-2 border-[#FF5500] shadow-[0_0_15px_rgba(255,85,0,0.5)]" />
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+      <img src="/logo.jpg" alt="Logo" style={{ width: "48px", height: "48px", borderRadius: "50%", border: "2px solid #FF5500", boxShadow: "0 0 15px rgba(255,85,0,0.5)" }} />
     </div>
   );
 }
