@@ -65,7 +65,8 @@ function useWindowSize() {
     const update = () => {
       const w = window.innerWidth;
       const h = window.innerHeight;
-      document.documentElement.style.setProperty('--vh', `${h * 0.01}px`);
+// Removed JS vh handling; using native dvh/svh units for height calculations.
+
       setSize({ w, h, isMobile: w <= 768 });
     };
     
@@ -292,10 +293,10 @@ export default function App() {
   };
 
   return (
-    <div id="outer-container" style={{ height: "calc(var(--vh, 1vh) * 800)", position: "relative", backgroundColor: "#0a0608", contain: "paint layout" }}>
+    <div id="outer-container" style={{ height: "800dvh", position: "relative", backgroundColor: "#0a0608", contain: "paint layout" }}>
 
       {/* ═══ STICKY VIEWPORT ═══ */}
-      <div style={{ position: "sticky", top: 0, height: "calc(var(--vh, 1vh) * 100)", width: "100%", maxWidth: "100vw", overflow: "hidden", backgroundColor: "#0a0608", contain: "paint layout" }}>
+      <div style={{ position: "sticky", top: 0, height: "100dvh", width: "100%", maxWidth: "100vw", overflow: "hidden", backgroundColor: "#0a0608", contain: "paint layout" }}>
 
         {/* ═══ FULL-SCREEN LOGO SPLASH (z-index: 100) ═══ */}
         {splashOpacity > 0.01 && (
@@ -430,7 +431,7 @@ export default function App() {
         </div>
 
         {/* Top Fade (z: 45) */}
-        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "42vh", background: "linear-gradient(to bottom, rgba(10,6,8,0.8) 0%, transparent 100%)", pointerEvents: "none", zIndex: 45 }} />
+        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "42dvh", background: "linear-gradient(to bottom, rgba(10,6,8,0.8) 0%, transparent 100%)", pointerEvents: "none", zIndex: 45 }} />
 
         {/* Layer 1: World BG (z: 0) */}
         <div style={{ position: "absolute", inset: 0, transformOrigin: "50% 50%", transform: `scale(${worldScale}) translate3d(${-mx * 6}px, ${-my * 6}px, 0)`, WebkitBackfaceVisibility: "hidden", zIndex: 0 }}>
@@ -487,7 +488,7 @@ export default function App() {
                 transition: "opacity 0.9s ease 0.3s, transform 0.9s ease 0.3s",
               }}
             >
-              <div style={{ textAlign: "center", marginTop: isLandscape ? "4vh" : "15vh" }}>
+              <div style={{ textAlign: "center", marginTop: isLandscape ? "4dvh" : "15dvh" }}>
                 <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(30px, 8vw, 50px)", letterSpacing: "0.12em", color: "#FF5500", margin: 0 }}>
                   STAR <span style={{ color: "#F5EDD8", fontSize: "0.8em" }}>›</span> BBQ
                 </h2>
@@ -539,7 +540,7 @@ export default function App() {
         {/* ═══════════════════════════════════════════════════════════ */}
         {/*  SCENE 2 UI: MENU HEADING (z: 46)                        */}
         {/* ═══════════════════════════════════════════════════════════ */}
-        <div style={{ position: "absolute", inset: 0, zIndex: 46, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "start", opacity: scene2Opacity, pointerEvents: scene2Opacity > 0.1 ? "auto" : "none", paddingTop: isMobile ? "8vh" : fs(w, [80, 80, 60, 80, 90, 100]) }}>
+        <div style={{ position: "absolute", inset: 0, zIndex: 46, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "start", opacity: scene2Opacity, pointerEvents: scene2Opacity > 0.1 ? "auto" : "none", paddingTop: isMobile ? "8dvh" : fs(w, [80, 80, 60, 80, 90, 100]) }}>
           <div style={{ textAlign: "center", padding: "0 24px" }}>
             <h2 style={{
               fontFamily: "'Bebas Neue', sans-serif",
@@ -718,7 +719,7 @@ function ContactUI({ w, isMobile }: { w: number; isMobile: boolean }) {
   const headingFS = fs(w, [40, 48, 56, 64, 72, 90]);
 
   return (
-    <div style={{ width: "100%", maxWidth: containerMaxW, padding: `0 ${containerPx}`, boxSizing: "border-box", marginTop: isMobile ? "calc(var(--vh, 1vh) * 12)" : "0" }}>
+    <div style={{ width: "100%", maxWidth: containerMaxW, padding: `0 ${containerPx}`, boxSizing: "border-box", marginTop: isMobile ? "12dvh" : "0" }}>
       <div style={{ textAlign: "center", marginBottom: isMobile ? "24px" : "48px" }}>
         <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: headingFS, color: "#F5EDD8", letterSpacing: "0.05em", margin: 0, textShadow: "0 4px 20px rgba(0,0,0,0.8)" }}>
           GET IN <span style={{ color: "#FF5500" }}>TOUCH</span>

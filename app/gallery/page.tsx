@@ -16,12 +16,12 @@ const IMAGES = [
 
 export default function GalleryPage() {
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: "#0a0608", color: "#F5EDD8", fontFamily: "'Imprima', sans-serif" }}>
+    <div style={{ minHeight: "100dvh", backgroundColor: "#0a0608", color: "#F5EDD8", fontFamily: "'Imprima', sans-serif" }}>
       
       {/* Background theme elements */}
       <div style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none" }}>
         <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle at center, transparent 10%, #0a0608 85%), linear-gradient(rgba(255,85,0,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,85,0,0.02) 1px, transparent 1px)", backgroundSize: "100% 100%, 40px 40px, 40px 40px" }} />
-        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "40vh", background: "linear-gradient(to top, rgba(255,85,0,0.05), transparent)", filter: "sepia(1) hue-rotate(-20deg) saturate(2)" }} />
+        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "40dvh", background: "linear-gradient(to top, rgba(255,85,0,0.05), transparent)", filter: "sepia(1) hue-rotate(-20deg) saturate(2)" }} />
       </div>
 
       <div style={{ position: "relative", zIndex: 10, maxWidth: "1200px", margin: "0 auto", padding: "40px 24px" }}>
