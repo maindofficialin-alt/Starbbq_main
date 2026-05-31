@@ -124,7 +124,7 @@ export default function ScrollFrameHero() {
   }, [currentFrame, frameCount]);
 
   return (
-    <div ref={containerRef} className="relative h-[450vh] w-full bg-char">
+    <div ref={containerRef} className="relative w-full bg-char" style={{height: "450dvh"}}>
       <div className="sticky top-0 h-screen w-full overflow-hidden bg-char">
         {/* Frame canvas with initial opacity transition */}
         <motion.canvas

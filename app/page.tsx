@@ -293,7 +293,7 @@ export default function App() {
   };
 
   return (
-    <div id="outer-container" style={{ height: "800dvh", position: "relative", backgroundColor: "#0a0608", contain: "paint layout" }}>
+    <div id="outer-container" style={{ height: "800dvh", position: "relative", backgroundColor: "#0a0608", contain: "paint layout", maxWidth: "100vw" }}>
 
       {/* ═══ STICKY VIEWPORT ═══ */}
       <div style={{ position: "sticky", top: 0, height: "100dvh", width: "100%", maxWidth: "100vw", overflow: "hidden", backgroundColor: "#0a0608", contain: "paint layout" }}>
