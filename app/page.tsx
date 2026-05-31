@@ -539,7 +539,7 @@ export default function App() {
         {/* ═══════════════════════════════════════════════════════════ */}
         {/*  SCENE 2 UI: MENU HEADING (z: 46)                        */}
         {/* ═══════════════════════════════════════════════════════════ */}
-        <div style={{ position: "absolute", inset: 0, zIndex: 46, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "start", opacity: scene2Opacity, pointerEvents: scene2Opacity > 0.1 ? "auto" : "none", paddingTop: fs(w, [8vh, 8vh, 6vh, 8vh, 9vh, 10vh]) }}>
+        <div style={{ position: "absolute", inset: 0, zIndex: 46, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "start", opacity: scene2Opacity, pointerEvents: scene2Opacity > 0.1 ? "auto" : "none", paddingTop: isMobile ? "8vh" : fs(w, [80, 80, 60, 80, 90, 100]) }}>
           <div style={{ textAlign: "center", padding: "0 24px" }}>
             <h2 style={{
               fontFamily: "'Bebas Neue', sans-serif",
