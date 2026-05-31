@@ -36,28 +36,56 @@ const clamp = (val: number, min: number, max: number) => Math.max(min, Math.min(
 // RESPONSIVE HOOKS
 // ═══════════════════════════════════════════════════════════════
 
-type DeviceTier = 'mobile-sm' | 'mobile' | 'tablet' | 'laptop' | 'desktop' | 'tv';
+const wAnchors = [320, 390, 768, 1024, 1440, 1920];
+function f(w: number, v: number[]): number {
+  if (w <= wAnchors[0]) return v[0];
+  if (w >= wAnchors[5]) return v[5];
+  for (let i = 0; i < 5; i++) {
+    if (w >= wAnchors[i] && w <= wAnchors[i+1]) {
+      const t = (w - wAnchors[i]) / (wAnchors[i+1] - wAnchors[i]);
+      return v[i] + t * (v[i+1] - v[i]);
+    }
+  }
+  return v[5];
+}
 
-function useBreakpoint(): DeviceTier {
-  const [tier, setTier] = useState<DeviceTier>('laptop');
+function fs(w: number, v: (number | string)[]): string {
+  const vals = v.map(s => typeof s === "string" ? parseFloat(s) : s);
+  return `${f(w, vals)}px`;
+}
+
+
+function useWindowSize() {
+  const [size, setSize] = useState({ w: 1024, h: 768, isMobile: false });
 
   useEffect(() => {
-    const evaluate = (): DeviceTier => {
+    let lastW = window.innerWidth;
+    let lastH = window.innerHeight;
+    
+    const update = () => {
       const w = window.innerWidth;
-      if (w <= 375) return 'mobile-sm'; // Strict small mobile bound (320px-375px)
-      if (w <= 768) return 'mobile';
-      if (w <= 1024) return 'tablet';
-      if (w <= 1536) return 'laptop';
-      if (w <= 2560) return 'desktop';
-      return 'tv';
+      const h = window.innerHeight;
+      document.documentElement.style.setProperty('--vh', `${h * 0.01}px`);
+      setSize({ w, h, isMobile: w <= 768 });
     };
-    setTier(evaluate());
-    const onResize = () => setTier(evaluate());
+    
+    update();
+    
+    const onResize = () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      if (w !== lastW || Math.abs(h - lastH) > 150) {
+        lastW = w;
+        lastH = h;
+        update();
+      }
+    };
+    
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  return tier;
+  return size;
 }
 
 function useIsLandscape(): boolean {
@@ -71,22 +99,16 @@ function useIsLandscape(): boolean {
   return landscape;
 }
 
-function tierIsMobile(tier: DeviceTier): boolean {
-  return tier === 'mobile-sm' || tier === 'mobile' || tier === 'tablet'; // tablet gets hamburger too for cleaner UI
-}
 
-function rv<T>(tier: DeviceTier, v: { 'mobile-sm': T; mobile: T; tablet: T; laptop: T; desktop: T; tv: T }): T {
-  return v[tier];
-}
 
 // ═══════════════════════════════════════════════════════════════
 // MAIN APP COMPONENT
 // ═══════════════════════════════════════════════════════════════
 
 export default function App() {
-  const tier = useBreakpoint();
+  const { w, isMobile } = useWindowSize();
   const isLandscape = useIsLandscape();
-  const isMobile = tierIsMobile(tier);
+  
 
   const scrollRef = useRef(0);
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -124,7 +146,7 @@ export default function App() {
       }
     };
 
-    const onScroll = () => {
+    const triggerCompute = () => {
       if (!ticking) {
         ticking = true;
         requestAnimationFrame(compute);
@@ -132,12 +154,16 @@ export default function App() {
     };
 
     compute();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", compute, { passive: true });
+    const observer = new ResizeObserver(triggerCompute);
+    observer.observe(document.body);
+    
+    window.addEventListener("scroll", triggerCompute, { passive: true });
+    window.addEventListener("resize", triggerCompute, { passive: true });
 
     return () => {
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", compute);
+      observer.disconnect();
+      window.removeEventListener("scroll", triggerCompute);
+      window.removeEventListener("resize", triggerCompute);
     };
   }, []);
 
@@ -216,7 +242,7 @@ export default function App() {
 
   // Arc Slider rotation
   const sliderProg = clamp((scrollProgress - 0.30) / 0.25, 0, 1);
-  const cardSpacingDeg = rv(tier, { 'mobile-sm': 15, mobile: 12, tablet: 10, laptop: 9, desktop: 8, tv: 7 }); // wider angle on mobile to prevent squishing
+  const cardSpacingDeg = f(w, [15, 12, 10, 9, 8, 7]); // wider angle on mobile to prevent squishing
   const arcSweepDeg = (SCENE2_CARDS.length - 1) * cardSpacingDeg;
   const sliderRotationOffset = lerp(0, arcSweepDeg, sliderProg);
 
@@ -229,7 +255,7 @@ export default function App() {
   }
 
   // Mouse parallax — disabled on touch devices
-  const pI = isMobile ? 0 : (tier === 'tablet' ? 0.5 : 1);
+  const pI = isMobile ? 0 : (w <= 1024 ? 0.5 : 1);
   const mx = mousePos.x * pI;
   const my = mousePos.y * pI;
 
@@ -241,19 +267,19 @@ export default function App() {
   const curtainTrans = !entranceDone ? "transform 1.8s cubic-bezier(0.16, 1, 0.3, 1)" : "none";
 
   // ── Responsive values ──
-  const navPadX = rv(tier, { 'mobile-sm': '16px', mobile: '24px', tablet: '24px', laptop: '40px', desktop: '48px', tv: '64px' });
-  const navPadY = rv(tier, { 'mobile-sm': '16px', mobile: '20px', tablet: '20px', laptop: '20px', desktop: '22px', tv: '28px' });
-  const navFontSize = rv(tier, { 'mobile-sm': '14px', mobile: '16px', tablet: '16px', laptop: '16px', desktop: '18px', tv: '22px' });
-  const navGap = rv(tier, { 'mobile-sm': '20px', mobile: '24px', tablet: '24px', laptop: '32px', desktop: '40px', tv: '52px' });
-  const logoFinalSize = rv(tier, { 'mobile-sm': 56, mobile: 64, tablet: 56, laptop: 48, desktop: 52, tv: 60 });
-  const heroTextLeft = rv(tier, { 'mobile-sm': '20px', mobile: '32px', tablet: '36px', laptop: '52px', desktop: '72px', tv: '100px' });
-  const heroTextMaxW = rv(tier, { 'mobile-sm': '340px', mobile: '400px', tablet: '400px', laptop: '420px', desktop: '520px', tv: '660px' });
-  const heroCardSize = rv(tier, { 'mobile-sm': 120, mobile: 160, tablet: 160, laptop: 160, desktop: 190, tv: 240 });
-  const heroCardRight = rv(tier, { 'mobile-sm': '16px', mobile: '24px', tablet: '28px', laptop: '40px', desktop: '60px', tv: '100px' });
-  const heroDescFS = rv(tier, { 'mobile-sm': '16px', mobile: '18px', tablet: '18px', laptop: '20px', desktop: '22px', tv: '28px' });
-  const heroTempFS = rv(tier, { 'mobile-sm': 28, mobile: 38, tablet: 38, laptop: 40, desktop: 46, tv: 56 });
-  const heroLabelFS = rv(tier, { 'mobile-sm': '12px', mobile: '14px', tablet: '14px', laptop: '14px', desktop: '15px', tv: '18px' });
-  const arcSliderBottom = rv(tier, { 'mobile-sm': '20px', mobile: '40px', tablet: '30px', laptop: '30px', desktop: '36px', tv: '50px' });
+  const navPadX = fs(w, [16, 24, 24, 40, 48, 64]);
+  const navPadY = fs(w, [16, 20, 20, 20, 22, 28]);
+  const navFontSize = fs(w, [14, 16, 16, 16, 18, 22]);
+  const navGap = fs(w, [20, 24, 24, 32, 40, 52]);
+  const logoFinalSize = f(w, [56, 64, 56, 48, 52, 60]);
+  const heroTextLeft = fs(w, [20, 32, 36, 52, 72, 100]);
+  const heroTextMaxW = fs(w, [340, 400, 400, 420, 520, 660]);
+  const heroCardSize = f(w, [120, 160, 160, 160, 190, 240]);
+  const heroCardRight = fs(w, [16, 24, 28, 40, 60, 100]);
+  const heroDescFS = fs(w, [16, 18, 18, 20, 22, 28]);
+  const heroTempFS = f(w, [28, 38, 38, 40, 46, 56]);
+  const heroLabelFS = fs(w, [12, 14, 14, 14, 15, 18]);
+  const arcSliderBottom = fs(w, [20, 40, 30, 30, 36, 50]);
 
   // Handle closing menu
   const handleNavClick = (isContact = false) => {
@@ -266,10 +292,10 @@ export default function App() {
   };
 
   return (
-    <div id="outer-container" style={{ height: "800dvh", position: "relative", backgroundColor: "#0a0608" }}>
+    <div id="outer-container" style={{ height: "calc(var(--vh, 1vh) * 800)", position: "relative", backgroundColor: "#0a0608", contain: "paint layout" }}>
 
       {/* ═══ STICKY VIEWPORT ═══ */}
-      <div style={{ position: "sticky", top: 0, height: "100dvh", width: "100%", maxWidth: "100vw", overflow: "hidden", backgroundColor: "#0a0608" }}>
+      <div style={{ position: "sticky", top: 0, height: "calc(var(--vh, 1vh) * 100)", width: "100%", maxWidth: "100vw", overflow: "hidden", backgroundColor: "#0a0608", contain: "paint layout" }}>
 
         {/* ═══ FULL-SCREEN LOGO SPLASH (z-index: 100) ═══ */}
         {splashOpacity > 0.01 && (
@@ -423,7 +449,7 @@ export default function App() {
 
         {/* Layer 2.5: Arc Slider (z: 9) */}
         <div style={{ position: "absolute", bottom: arcSliderBottom, left: 0, right: 0, opacity: scene2Opacity, WebkitBackfaceVisibility: "hidden", zIndex: 9, pointerEvents: scene2Opacity > 0.1 ? "auto" : "none" }}>
-          <ArcCardSlider cards={SCENE2_CARDS} rotationOffset={sliderRotationOffset} tier={tier} />
+          <ArcCardSlider cards={SCENE2_CARDS} rotationOffset={sliderRotationOffset} w={w} />
         </div>
 
         {/* Layer 3: Portal (z: 15) */}
@@ -450,7 +476,7 @@ export default function App() {
         <div style={{ position: "absolute", inset: 0, zIndex: 20, opacity: scene1Opacity, pointerEvents: scene1Opacity > 0.1 ? "auto" : "none" }}>
 
           {/* ── Mobile Hero ── */}
-          {tierIsMobile(tier) && (
+          {isMobile && (
             <div
               style={{
                 display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "space-between",
@@ -480,7 +506,7 @@ export default function App() {
           )}
 
           {/* ── Desktop / Tablet Hero ── */}
-          {!tierIsMobile(tier) && (
+          {!isMobile && (
             <>
               <div style={{ position: "absolute", top: "46%", left: heroTextLeft, maxWidth: heroTextMaxW, transform: "translate3d(0, -50%, 0)", opacity: uiVisible ? 1 : 0, transition: "opacity 0.9s ease 0.3s" }}>
                 <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: "clamp(30px, 5vw, 72px)", lineHeight: "1.1", letterSpacing: "0.08em", color: "#FF5500", textShadow: "0 2px 24px rgba(0,0,0,0.7)", margin: 0 }}>
@@ -513,20 +539,20 @@ export default function App() {
         {/* ═══════════════════════════════════════════════════════════ */}
         {/*  SCENE 2 UI: MENU HEADING (z: 46)                        */}
         {/* ═══════════════════════════════════════════════════════════ */}
-        <div style={{ position: "absolute", inset: 0, zIndex: 46, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "start", opacity: scene2Opacity, pointerEvents: scene2Opacity > 0.1 ? "auto" : "none", paddingTop: rv(tier, { 'mobile-sm': '8vh', mobile: '8vh', tablet: '6vh', laptop: '8vh', desktop: '9vh', tv: '10vh' }) }}>
+        <div style={{ position: "absolute", inset: 0, zIndex: 46, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "start", opacity: scene2Opacity, pointerEvents: scene2Opacity > 0.1 ? "auto" : "none", paddingTop: fs(w, [8vh, 8vh, 6vh, 8vh, 9vh, 10vh]) }}>
           <div style={{ textAlign: "center", padding: "0 24px" }}>
             <h2 style={{
               fontFamily: "'Bebas Neue', sans-serif",
-              fontSize: rv(tier, { 'mobile-sm': '40px', mobile: '54px', tablet: '64px', laptop: '90px', desktop: '100px', tv: '120px' }),
+              fontSize: fs(w, [40, 54, 64, 90, 100, 120]),
               color: "#F5EDD8", letterSpacing: "0.05em", lineHeight: 1.05, textShadow: "0 2px 20px rgba(0,0,0,0.8)", margin: 0,
             }}>
               FIRE CRAFTED <span style={{ color: "#FF5500" }}>FAVOURITES</span>
             </h2>
             <p style={{
               fontFamily: "'Barlow Condensed', sans-serif",
-              fontSize: rv(tier, { 'mobile-sm': '15px', mobile: '18px', tablet: '18px', laptop: '22px', desktop: '24px', tv: '30px' }),
+              fontSize: fs(w, [15, 18, 18, 22, 24, 30]),
               lineHeight: "1.6", color: "rgba(245,237,216,0.85)",
-              maxWidth: rv(tier, { 'mobile-sm': '280px', mobile: '360px', tablet: '400px', laptop: '500px', desktop: '600px', tv: '750px' }),
+              maxWidth: fs(w, [280, 360, 400, 500, 600, 750]),
               margin: "12px auto 0 auto", textShadow: "0 1px 10px rgba(0,0,0,0.8)",
             }}>
               Singular voyages to astonishing flavor, shaped for those who seek the authentic taste of live charcoal.
@@ -540,19 +566,19 @@ export default function App() {
         <div style={{ position: "absolute", inset: 0, zIndex: 48, opacity: sceneVideoOpacity, pointerEvents: sceneVideoOpacity > 0.1 ? "auto" : "none", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", backgroundColor: "#0a0608" }}>
           <video src="/Demo 2.mp4" autoPlay loop muted playsInline style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", objectFit: "cover", zIndex: 0 }} />
           <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle, transparent 20%, rgba(10,6,8,0.7) 100%), linear-gradient(to top, rgba(10,6,8,0.9) 0%, transparent 40%, transparent 60%, rgba(10,6,8,0.9) 100%)", zIndex: 1 }} />
-          <div style={{ position: "relative", zIndex: 2, maxWidth: rv(tier, { 'mobile-sm': '360px', mobile: '420px', tablet: '600px', laptop: '800px', desktop: '900px', tv: '1100px' }), display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "0 20px" }}>
-            <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: rv(tier, { 'mobile-sm': '14px', mobile: '16px', tablet: '16px', laptop: '18px', desktop: '20px', tv: '24px' }), letterSpacing: "0.4em", color: "#FF5500", fontWeight: "bold", textTransform: "uppercase", marginBottom: "16px" }}>The Fire Craft</span>
-            <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: rv(tier, { 'mobile-sm': '36px', mobile: '48px', tablet: '56px', laptop: '80px', desktop: '100px', tv: '120px' }), color: "#F5EDD8", letterSpacing: "0.03em", lineHeight: 0.95, margin: 0, textShadow: "0 4px 20px rgba(0,0,0,0.6)" }}>
+          <div style={{ position: "relative", zIndex: 2, maxWidth: fs(w, [360, 420, 600, 800, 900, 1100]), display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", padding: "0 20px" }}>
+            <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: fs(w, [14, 16, 16, 18, 20, 24]), letterSpacing: "0.4em", color: "#FF5500", fontWeight: "bold", textTransform: "uppercase", marginBottom: "16px" }}>The Fire Craft</span>
+            <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: fs(w, [36, 48, 56, 80, 100, 120]), color: "#F5EDD8", letterSpacing: "0.03em", lineHeight: 0.95, margin: 0, textShadow: "0 4px 20px rgba(0,0,0,0.6)" }}>
               CRAFTED BY <span style={{ color: "#FF5500" }}>HEAT & EMBER</span>
             </h2>
-            <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: rv(tier, { 'mobile-sm': '15px', mobile: '18px', tablet: '18px', laptop: '22px', desktop: '24px', tv: '30px' }), lineHeight: "1.6", color: "rgba(245,237,216,0.85)", maxWidth: rv(tier, { 'mobile-sm': '300px', mobile: '380px', tablet: '480px', laptop: '600px', desktop: '700px', tv: '850px' }), margin: "24px auto 36px auto", textShadow: "0 2px 10px rgba(0,0,0,0.8)" }}>
+            <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: fs(w, [15, 18, 18, 22, 24, 30]), lineHeight: "1.6", color: "rgba(245,237,216,0.85)", maxWidth: fs(w, [300, 380, 480, 600, 700, 850]), margin: "24px auto 36px auto", textShadow: "0 2px 10px rgba(0,0,0,0.8)" }}>
               Watch the dance of fire and charcoal. No shortcuts, no compromise. Only genuine flame-kissed gastronomy.
             </p>
-            <div style={{ display: "flex", gap: rv(tier, { 'mobile-sm': '8px', mobile: '16px', tablet: '20px', laptop: '28px', desktop: '36px', tv: '44px' }), flexWrap: "wrap", justifyContent: "center" }}>
+            <div style={{ display: "flex", gap: fs(w, [8, 16, 20, 28, 36, 44]), flexWrap: "wrap", justifyContent: "center" }}>
               {[{ title: "800° HEAT", desc: "Live Oak Charcoal" }, { title: "24HR PREP", desc: "Slow Marination" }, { title: "100% RAW", desc: "No Gas Cookers" }].map((item, i) => (
-                <div key={i} style={{ border: "1px solid rgba(255,85,0,0.3)", backgroundColor: "rgba(10,6,8,0.6)", backdropFilter: "blur(8px)", borderRadius: rv(tier, { 'mobile-sm': '12px', mobile: '16px', tablet: '16px', laptop: '16px', desktop: '18px', tv: '20px' }), padding: rv(tier, { 'mobile-sm': '10px 14px', mobile: '14px 20px', tablet: '12px 18px', laptop: '14px 24px', desktop: '16px 28px', tv: '20px 36px' }), minWidth: rv(tier, { 'mobile-sm': '130px', mobile: '110px', tablet: '110px', laptop: '120px', desktop: '140px', tv: '170px' }), textAlign: "center" as const }}>
-                  <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: rv(tier, { 'mobile-sm': '18px', mobile: '22px', tablet: '20px', laptop: '24px', desktop: '28px', tv: '34px' }), color: "#FF5500", letterSpacing: "0.05em" }}>{item.title}</div>
-                  <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: rv(tier, { 'mobile-sm': '11px', mobile: '12px', tablet: '12px', laptop: '13px', desktop: '14px', tv: '17px' }), color: "rgba(245,237,216,0.6)", letterSpacing: "0.05em", textTransform: "uppercase" as const, marginTop: "4px" }}>{item.desc}</div>
+                <div key={i} style={{ border: "1px solid rgba(255,85,0,0.3)", backgroundColor: "rgba(10,6,8,0.6)", backdropFilter: "blur(8px)", borderRadius: fs(w, [12, 16, 16, 16, 18, 20]), padding: isMobile ? "14px 20px" : "16px 28px", minWidth: fs(w, [130, 110, 110, 120, 140, 170]), textAlign: "center" as const }}>
+                  <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: fs(w, [18, 22, 20, 24, 28, 34]), color: "#FF5500", letterSpacing: "0.05em" }}>{item.title}</div>
+                  <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: fs(w, [11, 12, 12, 13, 14, 17]), color: "rgba(245,237,216,0.6)", letterSpacing: "0.05em", textTransform: "uppercase" as const, marginTop: "4px" }}>{item.desc}</div>
                 </div>
               ))}
             </div>
@@ -563,7 +589,7 @@ export default function App() {
         {/*  SCENE 3: CONTACT (z: 60)                                */}
         {/* ═══════════════════════════════════════════════════════════ */}
         <div style={{ position: "absolute", inset: 0, zIndex: 60, opacity: scene3Opacity, pointerEvents: scene3Opacity > 0.1 ? "auto" : "none", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: `rgba(10,6,8,${scene3Opacity * 0.96})`, backdropFilter: `blur(${scene3Opacity * 12}px)`, backgroundImage: "radial-gradient(circle at center, transparent 10%, #0a0608 85%), linear-gradient(rgba(255,85,0,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,85,0,0.02) 1px, transparent 1px)", backgroundSize: "100% 100%, 40px 40px, 40px 40px", overflowY: "auto", overflowX: "hidden" }}>
-          <ContactUI tier={tier} isMobile={isMobile} />
+          <ContactUI w={w} isMobile={isMobile} />
         </div>
 
         {/* ═══ Navbar Logo (small, stays after splash, moved up to avoid text clash) ═══ */}
@@ -612,21 +638,21 @@ function InfoCard({ image, size, value, label, valueFS, labelFS }: { image: stri
 // ═══════════════════════════════════════════════════════════════
 // Arc Card Slider — fully responsive
 // ═══════════════════════════════════════════════════════════════
-interface ArcSliderProps { cards: typeof SCENE2_CARDS; rotationOffset: number; tier: DeviceTier; }
+interface ArcSliderProps { cards: typeof SCENE2_CARDS; rotationOffset: number; w: number; }
 
-function ArcCardSlider({ cards, rotationOffset, tier }: ArcSliderProps) {
+function ArcCardSlider({ cards, rotationOffset, w }: ArcSliderProps) {
   // Relaxed mobile radii and dimensions so cards look massive and don't clip off
-  const cardSpacingDeg = rv(tier, { 'mobile-sm': 18, mobile: 14, tablet: 10, laptop: 9, desktop: 8, tv: 7 });
-  const arcRadius = rv(tier, { 'mobile-sm': 1200, mobile: 1400, tablet: 1400, laptop: 1800, desktop: 2200, tv: 3000 });
-  const cardW = rv(tier, { 'mobile-sm': 220, mobile: 260, tablet: 240, laptop: 260, desktop: 300, tv: 380 });
-  const cardH = rv(tier, { 'mobile-sm': 300, mobile: 340, tablet: 320, laptop: 320, desktop: 370, tv: 460 });
-  const containerH = rv(tier, { 'mobile-sm': '360px', mobile: '420px', tablet: '380px', laptop: '400px', desktop: '440px', tv: '560px' });
-  const cardBR = rv(tier, { 'mobile-sm': '16px', mobile: '20px', tablet: '22px', laptop: '28px', desktop: '30px', tv: '36px' });
-  const titleFS = rv(tier, { 'mobile-sm': '22px', mobile: '26px', tablet: '26px', laptop: '32px', desktop: '36px', tv: '44px' });
-  const descFS = rv(tier, { 'mobile-sm': '14px', mobile: '16px', tablet: '14px', laptop: '16px', desktop: '18px', tv: '22px' });
-  const pad = rv(tier, { 'mobile-sm': '14px', mobile: '18px', tablet: '18px', laptop: '24px', desktop: '28px', tv: '36px' });
-  const badgeSz = rv(tier, { 'mobile-sm': 24, mobile: 30, tablet: 28, laptop: 28, desktop: 32, tv: 38 });
-  const bottomOffset = rv(tier, { 'mobile-sm': 180, mobile: 220, tablet: 140, laptop: 120, desktop: 140, tv: 180 });
+  const cardSpacingDeg = f(w, [18, 14, 10, 9, 8, 7]);
+  const arcRadius = f(w, [1200, 1400, 1400, 1800, 2200, 3000]);
+  const cardW = f(w, [220, 260, 240, 260, 300, 380]);
+  const cardH = f(w, [300, 340, 320, 320, 370, 460]);
+  const containerH = fs(w, [360, 420, 380, 400, 440, 560]);
+  const cardBR = fs(w, [16, 20, 22, 28, 30, 36]);
+  const titleFS = fs(w, [22, 26, 26, 32, 36, 44]);
+  const descFS = fs(w, [14, 16, 14, 16, 18, 22]);
+  const pad = fs(w, [14, 18, 18, 24, 28, 36]);
+  const badgeSz = f(w, [24, 30, 28, 28, 32, 38]);
+  const bottomOffset = f(w, [180, 220, 140, 120, 140, 180]);
 
   const centerIdx = Math.floor(cards.length / 2);
 
@@ -660,7 +686,7 @@ function ArcCardSlider({ cards, rotationOffset, tier }: ArcSliderProps) {
 // ═══════════════════════════════════════════════════════════════
 // Contact UI — Redesigned for Premium Fire Theme
 // ═══════════════════════════════════════════════════════════════
-function ContactUI({ tier, isMobile }: { tier: DeviceTier; isMobile: boolean }) {
+function ContactUI({ w, isMobile }: { w: number; isMobile: boolean }) {
   const [formData, setFormData] = useState({ name: "", email: "", phone: "", message: "" });
   const [isSending, setIsSending] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
@@ -679,31 +705,31 @@ function ContactUI({ tier, isMobile }: { tier: DeviceTier; isMobile: boolean }) 
 
   const fieldStyle = (name: string): CSSProperties => ({
     width: "100%", borderRadius: "12px",
-    padding: `${rv(tier, { 'mobile-sm': '12px', mobile: '14px', tablet: '14px', laptop: '16px', desktop: '16px', tv: '20px' })} 16px ${rv(tier, { 'mobile-sm': '12px', mobile: '14px', tablet: '14px', laptop: '16px', desktop: '16px', tv: '20px' })} 48px`,
-    fontSize: rv(tier, { 'mobile-sm': '15px', mobile: '16px', tablet: '16px', laptop: '16px', desktop: '18px', tv: '22px' }),
+    padding: `${fs(w, [12, 14, 14, 16, 16, 20])} 16px ${fs(w, [12, 14, 14, 16, 16, 20])} 48px`,
+    fontSize: fs(w, [15, 16, 16, 16, 18, 22]),
     color: "#fff", backgroundColor: "rgba(10,6,8,0.7)",
     border: focusedField === name ? "1px solid #FF5500" : "1px solid rgba(255,85,0,0.2)",
     boxShadow: focusedField === name ? "0 0 20px rgba(255,85,0,0.15)" : "none",
     outline: "none", fontFamily: "'Barlow Condensed', sans-serif", transition: "all 0.3s ease",
   });
 
-  const containerMaxW = rv(tier, { 'mobile-sm': '100%', mobile: '100%', tablet: '680px', laptop: '700px', desktop: '800px', tv: '1000px' });
-  const containerPx = rv(tier, { 'mobile-sm': '16px', mobile: '24px', tablet: '28px', laptop: '24px', desktop: '32px', tv: '48px' });
-  const headingFS = rv(tier, { 'mobile-sm': '40px', mobile: '48px', tablet: '56px', laptop: '64px', desktop: '72px', tv: '90px' });
+  const containerMaxW = isMobile ? "100%" : fs(w, [680, 680, 680, 700, 800, 1000]);
+  const containerPx = fs(w, [16, 24, 28, 24, 32, 48]);
+  const headingFS = fs(w, [40, 48, 56, 64, 72, 90]);
 
   return (
-    <div style={{ width: "100%", maxWidth: containerMaxW, padding: `0 ${containerPx}`, boxSizing: "border-box", marginTop: isMobile ? "12dvh" : "0" }}>
+    <div style={{ width: "100%", maxWidth: containerMaxW, padding: `0 ${containerPx}`, boxSizing: "border-box", marginTop: isMobile ? "calc(var(--vh, 1vh) * 12)" : "0" }}>
       <div style={{ textAlign: "center", marginBottom: isMobile ? "24px" : "48px" }}>
         <h2 style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: headingFS, color: "#F5EDD8", letterSpacing: "0.05em", margin: 0, textShadow: "0 4px 20px rgba(0,0,0,0.8)" }}>
           GET IN <span style={{ color: "#FF5500" }}>TOUCH</span>
         </h2>
-        <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: rv(tier, { 'mobile-sm': '15px', mobile: '18px', tablet: '18px', laptop: '20px', desktop: '22px', tv: '26px' }), color: "rgba(245,237,216,0.8)", marginTop: "12px", textShadow: "0 2px 10px rgba(0,0,0,0.8)" }}>Connect with our fire masters directly via WhatsApp.</p>
+        <p style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: fs(w, [15, 18, 18, 20, 22, 26]), color: "rgba(245,237,216,0.8)", marginTop: "12px", textShadow: "0 2px 10px rgba(0,0,0,0.8)" }}>Connect with our fire masters directly via WhatsApp.</p>
       </div>
 
       <div style={{ display: "flex", justifyContent: "center" }}>
-        <form onSubmit={handleSubmit} style={{ width: "100%", borderRadius: "24px", padding: rv(tier, { 'mobile-sm': '20px', mobile: '32px', tablet: '40px', laptop: '48px', desktop: '56px', tv: '70px' }), display: "flex", flexDirection: "column", gap: rv(tier, { 'mobile-sm': '14px', mobile: '20px', tablet: '24px', laptop: '24px', desktop: '28px', tv: '36px' }), border: "1px solid rgba(255,85,0,0.3)", boxShadow: "0 20px 60px rgba(0,0,0,0.5), inset 0 0 30px rgba(255,85,0,0.05)", backgroundColor: "rgba(20,10,10,0.6)", backdropFilter: "blur(20px)" }}>
+        <form onSubmit={handleSubmit} style={{ width: "100%", borderRadius: "24px", padding: fs(w, [20, 32, 40, 48, 56, 70]), display: "flex", flexDirection: "column", gap: fs(w, [14, 20, 24, 24, 28, 36]), border: "1px solid rgba(255,85,0,0.3)", boxShadow: "0 20px 60px rgba(0,0,0,0.5), inset 0 0 30px rgba(255,85,0,0.05)", backgroundColor: "rgba(20,10,10,0.6)", backdropFilter: "blur(20px)" }}>
           
-          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: rv(tier, { 'mobile-sm': '14px', mobile: '20px', tablet: '24px', laptop: '24px', desktop: '28px', tv: '36px' }) }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: fs(w, [14, 20, 24, 24, 28, 36]) }}>
             <div style={{ position: "relative" }}>
               <span style={{ position: "absolute", left: "16px", top: "50%", transform: "translate3d(0, -50%, 0)", color: "rgba(255,85,0,0.7)", zIndex: 10, display: "flex" }}><User style={{ width: 18, height: 18 }} /></span>
               <input required type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} onFocus={() => setFocusedField("name")} onBlur={() => setFocusedField(null)} style={fieldStyle("name")} placeholder="Full Name" />
@@ -724,7 +750,7 @@ function ContactUI({ tier, isMobile }: { tier: DeviceTier; isMobile: boolean }) 
             <textarea required value={formData.message} onChange={e => setFormData({ ...formData, message: e.target.value })} onFocus={() => setFocusedField("message")} onBlur={() => setFocusedField(null)} rows={isMobile ? 3 : 4} style={{ ...fieldStyle("message"), paddingTop: "18px", resize: "none" }} placeholder="Your message..." />
           </div>
 
-          <button type="submit" disabled={isSending} onMouseEnter={() => setBtnHover(true)} onMouseLeave={() => setBtnHover(false)} style={{ width: "100%", marginTop: "12px", padding: rv(tier, { 'mobile-sm': '16px', mobile: '18px', tablet: '18px', laptop: '20px', desktop: '22px', tv: '28px' }), backgroundColor: btnHover ? "#FF4400" : "#FF5500", borderRadius: "12px", color: "#fff", fontWeight: "bold", letterSpacing: "0.15em", textTransform: "uppercase", fontSize: rv(tier, { 'mobile-sm': '16px', mobile: '18px', tablet: '18px', laptop: '20px', desktop: '22px', tv: '26px' }), fontFamily: "'Bebas Neue', sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: "12px", border: "none", cursor: isSending ? "not-allowed" : "pointer", opacity: isSending ? 0.7 : 1, boxShadow: btnHover ? "0 0 30px rgba(255,85,0,0.6)" : "0 8px 25px rgba(255,85,0,0.3)", transition: "all 0.3s ease" }}>
+          <button type="submit" disabled={isSending} onMouseEnter={() => setBtnHover(true)} onMouseLeave={() => setBtnHover(false)} style={{ width: "100%", marginTop: "12px", padding: fs(w, [16, 18, 18, 20, 22, 28]), backgroundColor: btnHover ? "#FF4400" : "#FF5500", borderRadius: "12px", color: "#fff", fontWeight: "bold", letterSpacing: "0.15em", textTransform: "uppercase", fontSize: fs(w, [16, 18, 18, 20, 22, 26]), fontFamily: "'Bebas Neue', sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: "12px", border: "none", cursor: isSending ? "not-allowed" : "pointer", opacity: isSending ? 0.7 : 1, boxShadow: btnHover ? "0 0 30px rgba(255,85,0,0.6)" : "0 8px 25px rgba(255,85,0,0.3)", transition: "all 0.3s ease" }}>
             {isSending ? "Initiating..." : "Send Request"} <Send style={{ width: 18, height: 18 }} />
           </button>
         </form>
